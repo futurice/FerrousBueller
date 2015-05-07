@@ -109,14 +109,48 @@ impl Ai for RandomAi {
 struct ScoutAi {
     config: GameConfig,
     you: Team,
-    other_teams: Vec<TeamNoPosNoHp>
+    other_teams: Vec<TeamNoPosNoHp>,
+    last_pos: Option<Position>
 }
 
 impl Ai for ScoutAi {
     #[allow(unused_variables)]
     fn respond(&mut self, events: Vec<Event>) -> Vec<Action>  {
-        println!("ScoutAi responding!");
-        let scoutActions = self.you.bots.first().map(|scout| {
+        /*let prev_pos = match self.last_pos {
+            Some(pos) => Some(Position { x: pos.x, y: pos.y }),
+            _ => None
+        };*/
+
+        self.last_pos = events.iter().fold(self.last_pos, |pos, event| {
+            match event {
+                &Event::RadarEchoEvent(ref e) => Some(Position { x: e.pos.x, y: e.pos.y }),
+                _ => pos
+            }
+        });
+
+        println!("last_pos: {:?}", self.last_pos);
+
+        self.you.bots.iter().filter(|bot| bot.alive).map(|bot| {
+            Action::RadarAction(RadarAction {
+                bot_id: bot.bot_id,
+                pos: Position { x: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius),
+                                y: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius)
+                }
+            })
+        }).collect()
+
+        /*let scout_bot = events.iter().fold(None, |scout, & event| {
+            match scout {
+                None => match event {
+                    SeeEvent { event, bot_id, source, pos } => self.you.bots.iter().filter(|bot| {
+                        bot.bot_id == bot_id
+                    }).collect().first(),
+                    _ => None
+                },
+                _ => scout
+            }
+        });
+        let scout_actions = scout_bot.map(|scout| {
             let allowed_positions = scout.pos.positions_within(self.config.move_);
             let chosen = thread_rng().choose(&allowed_positions).unwrap();
             let actions = vec![
@@ -127,10 +161,11 @@ impl Ai for ScoutAi {
             ];
             actions
         });
-        match scoutActions {
+        match scout_actions {
             Some(actions) => actions,
             None => Vec::new()
-        }
+        }*/
+
         /*self.you.bots.iter().filter(|bot| bot.alive).map(|bot| {
             match thread_rng().gen_range(1, 4) {
                 1 => Action::CannonAction(CannonAction {

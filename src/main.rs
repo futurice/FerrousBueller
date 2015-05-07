@@ -90,7 +90,7 @@ struct WebGameResponse {
 fn main() {
     let args: Args = Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit());
     let host = args.flag_host.unwrap_or_else(|| "localhost".to_string());
-    let team_name = args.flag_name.unwrap_or_else(|| "Team Rust".to_string());
+    let team_name = args.flag_name.unwrap_or_else(|| "Ferrous Bueller".to_string());
     let ai_name = args.flag_ai.unwrap_or_else(|| "random".to_string());
 
     let (game_host, port) = match args.flag_webgame {

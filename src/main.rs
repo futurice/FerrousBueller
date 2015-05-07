@@ -194,11 +194,13 @@ pub struct GameConfig {
     #[serde(rename="loopTime")] loop_time: i32
 }
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct Position {
     x: i32,
     y: i32
 }
+
+impl Copy for Position {}
 
 impl Position {
     #[allow(dead_code)]

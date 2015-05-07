@@ -105,9 +105,70 @@ impl Ai for RandomAi {
     }
 }
 
+#[derive(Default)]
+struct ScoutAi {
+    config: GameConfig,
+    you: Team,
+    other_teams: Vec<TeamNoPosNoHp>
+}
+
+impl Ai for ScoutAi {
+    #[allow(unused_variables)]
+    fn respond(&mut self, events: Vec<Event>) -> Vec<Action>  {
+        println!("ScoutAi responding!");
+        let scoutActions = self.you.bots.first().map(|scout| {
+            let allowed_positions = scout.pos.positions_within(self.config.move_);
+            let chosen = thread_rng().choose(&allowed_positions).unwrap();
+            let actions = vec![
+                Action::MoveAction(MoveAction {
+                    bot_id: scout.bot_id,
+                    pos: Position { x: chosen.x, y: chosen.y }
+                })
+            ];
+            actions
+        });
+        match scoutActions {
+            Some(actions) => actions,
+            None => Vec::new()
+        }
+        /*self.you.bots.iter().filter(|bot| bot.alive).map(|bot| {
+            match thread_rng().gen_range(1, 4) {
+                1 => Action::CannonAction(CannonAction {
+                    bot_id: bot.bot_id,
+                    pos: Position { x: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius),
+                                    y: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius)
+                    }
+                }),
+                2 => {
+                    let allowed_positions = bot.pos.positions_within(self.config.move_);
+                    let chosen = thread_rng().choose(&allowed_positions).unwrap();
+                    Action::MoveAction(MoveAction {
+                        bot_id: bot.bot_id,
+                        pos: Position { x: chosen.x, y: chosen.y }
+                    })
+                },
+                3 => Action::RadarAction(RadarAction {
+                    bot_id: bot.bot_id,
+                    pos: Position { x: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius),
+                                    y: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius)
+                    }
+                }),
+                _ => panic!("Doesn't happen")
+            }
+        }).collect()*/
+    }
+
+    fn set_state(&mut self, config: GameConfig, you: Team, other_teams: Vec<TeamNoPosNoHp>) {
+        self.config = config;
+        self.you = you;
+        self.other_teams = other_teams;
+    }
+}
+
 pub fn from_name(name: String) -> Box<Ai> {
     match name.as_ref() {
         "random" => Box::new(RandomAi { ..Default::default() }),
+        "scout" => Box::new(ScoutAi { ..Default::default() }),
         _ => panic!("Can't find an AI with name: {}", name)
     }
 }

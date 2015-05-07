@@ -18,7 +18,7 @@
  */
 extern crate rand;
 
-use super::incoming::{Event, Team, TeamNoPosNoHp};
+use super::incoming::{Event, Team, TeamNoPosNoHp, RadarEchoEvent};
 use super::{Position, GameConfig};
 
 use self::rand::{thread_rng, Rng};
@@ -29,39 +29,71 @@ pub trait Ai {
     fn set_state(&mut self, config: GameConfig, you: Team, other_teamss: Vec<TeamNoPosNoHp>) -> ();
 }
 
+#[derive(Debug, Default)]
+struct State {
+    last_target: Option<Position>,
+    is_scanning: Vec<bool>,
+    something_else: bool
+}
+
 #[derive(Default)]
 struct RandomAi {
     config: GameConfig,
     you: Team,
-    other_teams: Vec<TeamNoPosNoHp>
+    other_teams: Vec<TeamNoPosNoHp>,
+    current_state: State
 }
 
 impl Ai for RandomAi {
     #[allow(unused_variables)]
     fn respond(&mut self, events: Vec<Event>) -> Vec<Action>  {
+
+        let mut newTarget = None;
+        for event in events {
+            newTarget = match event {
+                Event::RadarEchoEvent(radarEvent) => Some(Position{ x: radarEvent.pos.x, y: radarEvent.pos.y}),
+                _ => None
+            }
+        };
+
+        self.current_state.last_target = match newTarget {
+            Some(pos) => Some(pos),
+            None => {
+                match &self.current_state.last_target {
+                    &Some(ref pos) => Some(Position{ x: pos.x, y: pos.y}),
+                    &None => None
+                }
+            }
+        };
+
+        println!("Last target {:?}", self.current_state);
+
         self.you.bots.iter().filter(|bot| bot.alive).map(|bot| {
-            match thread_rng().gen_range(1, 4) {
-                1 => Action::CannonAction(CannonAction {
-                    bot_id: bot.bot_id,
-                    pos: Position { x: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius),
-                                    y: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius)
-                    }
-                }),
-                2 => {
-                    let allowed_positions = bot.pos.positions_within(self.config.move_);
-                    let chosen = thread_rng().choose(&allowed_positions).unwrap();
-                    Action::MoveAction(MoveAction {
+
+            let allowed_positions = bot.pos.positions_within(self.config.move_);
+            let chosen = thread_rng().choose(&allowed_positions).unwrap();
+
+            match &self.current_state.last_target {
+                &Some(ref pos) => {
+                    println!("Cannonning");
+                    Action::CannonAction(CannonAction {
                         bot_id: bot.bot_id,
-                        pos: Position { x: chosen.x, y: chosen.y }
+                        pos: Position {
+                            x: pos.x,
+                            y: pos.y
+                        }
                     })
                 },
-                3 => Action::RadarAction(RadarAction {
-                    bot_id: bot.bot_id,
-                    pos: Position { x: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius),
-                                    y: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius)
-                    }
-                }),
-                _ => panic!("Doesn't happen")
+                &None => {
+                    println!("Radarign");
+                    Action::RadarAction(RadarAction {
+                        bot_id: bot.bot_id,
+                        pos: Position {
+                            x: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius),
+                            y: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius)
+                        }
+                    })
+                }
             }
         }).collect()
     }

@@ -142,13 +142,19 @@ impl Ai for RandomAi {
                     })
                 },
                 (false, None) => {
-                    println!("Radarign");
-                    Action::RadarAction(RadarAction {
+                    /*Action::RadarAction(RadarAction {
                         bot_id: bot.bot_id,
                         pos: Position {
                             x: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius),
                             y: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius)
                         }
+                    })*/
+                    let allowed_positions = bot.pos.positions_at(self.config.move_);
+                    let chosen = thread_rng().choose(&allowed_positions).unwrap();
+                    println!("Bot {:?} moving to {:?}", bot.bot_id, chosen);
+                    Action::MoveAction(MoveAction {
+                                        bot_id: bot.bot_id,
+                                        pos: Position { x: chosen.x, y: chosen. y}
                     })
                 }
             }

@@ -162,20 +162,30 @@ impl Ai for RandomAi {
             _ => None
         };
 
-        // Save the asteroid state for each hexagon
+        // Save the asteroid state for each tile
         for bot in self.you.bots.iter().filter(|bot| bot.alive) {
             //println!("Bot visibility {:?}", bot.pos.positions_within(self.config.see as u32));
 
         }
 
         living_bots.zip(shoot_deltas.iter().cycle()).map(|(bot, delta)| {
+            let other_bots: Vec<Bot> = self.you.bots.clone().into_iter().filter(|a_bot| a_bot.bot_id != bot.bot_id).collect();
             match (move_next, acquired_target) {
                 (true, _) => {
                     //println!("bot {:?} has to move from {:?}", bot.bot_id, bot.pos);
                     //println!("allowed move radius {:?}", self.config.move_);
                     let allowed_positions = bot.pos.positions_at(self.config.move_, self.config.field_radius);
                     //println!("allowed positions {:?}", allowed_positions);
-                    let chosen = thread_rng().choose(&allowed_positions).unwrap();
+                    let positions_without_others: Vec<Position> = allowed_positions.clone().into_iter().filter(|pos| {
+                                other_bots.iter().fold(true, |memo, other| {
+                                pos.distance(other.pos) > self.config.see
+                        })
+                    }).collect();
+                    let mut final_positions = allowed_positions.clone();
+                    if positions_without_others.len() > 0 {
+                            final_positions = positions_without_others.clone();
+                    }
+                    let chosen = thread_rng().choose(&final_positions).unwrap();
                     //println!("moving to {:?}", chosen);
                     Action::MoveAction(MoveAction {
                                         bot_id: bot.bot_id,
@@ -186,14 +196,14 @@ impl Ai for RandomAi {
                     match spotter_bot {
                         Some(sbot) if sbot.bot_id == bot.bot_id => {
                             let topos = bot.pos.move_away_from(tgtpos, self.config.move_);
-                            println!("Moving {:?} to {:?}", bot.bot_id, topos);
+                            //println!("Moving {:?} to {:?}", bot.bot_id, topos);
                             Action::MoveAction(MoveAction {
                                 bot_id: bot.bot_id,
                                 pos: topos
                             })
                         },
                         _ => {
-                            // println!("Cannonning");
+                            //println!("Cannonning");
                             // TODO: make sure spread doesn't hit our spotter
                             let mut cannonpos = Position {
                                 x: tgtpos.x + delta.x,
@@ -214,7 +224,19 @@ impl Ai for RandomAi {
                                     let allowed_positions = bot.pos.positions_at(self.config.move_, self.config.field_radius);
                                     // TODO: don't move closer to a friend
                                     // TODO: don't move to an asteroid position
-                                    let chosen = thread_rng().choose(&allowed_positions).unwrap();
+                                    let positions_without_others: Vec<Position> = allowed_positions.clone().into_iter().filter(|pos| {
+                                        other_bots.iter().fold(true, |memo, other| {
+                                            pos.distance(other.pos) > self.config.see
+                                        })
+                                    }).collect();
+                                    let mut final_positions = allowed_positions.clone();
+                                    if positions_without_others.len() > 0 {
+                                        final_positions = positions_without_others.clone();
+                                    }
+                                    let chosen = thread_rng().choose(&final_positions).unwrap();
+                                    println!("Positions in total {}, positions far enough of other bots {}",
+                                             allowed_positions.len(),
+                                             positions_without_others.len());
                                     //println!("Bot {:?} moving to {:?}", bot.bot_id, chosen);
                                     Action::MoveAction(MoveAction {
                                                         bot_id: bot.bot_id,
@@ -233,7 +255,20 @@ impl Ai for RandomAi {
                     let allowed_positions = bot.pos.positions_at(self.config.move_, self.config.field_radius);
                     // TODO: don't move closer to a friend
                     // TODO: don't move to an asteroid position
-                    let chosen = thread_rng().choose(&allowed_positions).unwrap();
+                    let positions_without_others: Vec<Position> = allowed_positions.clone().into_iter().filter(|pos| {
+                                other_bots.iter().fold(true, |memo, other| {
+                                pos.distance(other.pos) > self.config.see
+                        })
+                    }).collect();
+                    println!("Positions in total {}, positions far enough of other bots {}",
+                             allowed_positions.len(),
+                             positions_without_others.len());
+
+                    let mut final_positions = allowed_positions.clone();
+                    if positions_without_others.len() > 0 {
+                            final_positions = positions_without_others.clone();
+                    }
+                    let chosen = thread_rng().choose(&final_positions).unwrap();
                     //println!("Bot {:?} moving to {:?}", bot.bot_id, chosen);
                     Action::MoveAction(MoveAction {
                                         bot_id: bot.bot_id,

@@ -117,8 +117,8 @@ impl Ai for RandomAi {
         let living_bots = self.you.bots.iter().filter(|bot| bot.alive);
 
         living_bots.zip(shoot_deltas.iter()).map(|(bot, delta)| {
-            match move_next {
-                true => {
+            match (move_next, acquired_target) {
+                (true, _) => {
                     println!("bot {:?} has to move from {:?}", bot.bot_id, bot.pos);
                     println!("allowed move radius {:?}", self.config.move_);
                     let allowed_positions = bot.pos.positions_at(self.config.move_);
@@ -130,27 +130,25 @@ impl Ai for RandomAi {
                                         pos: Position { x: chosen.x, y: chosen. y}
                     })
                 },
-                false => match acquired_target {
-                    Some(ref pos) => {
-                            println!("Cannonning");
-                            Action::CannonAction(CannonAction {
-                                bot_id: bot.bot_id,
-                                pos: Position {
-                                    x: pos.x + delta.x,
-                                    y: pos.y + delta.y
-                                }
-                            })
-                        },
-                    None => {
-                            println!("Radarign");
-                            Action::RadarAction(RadarAction {
-                                bot_id: bot.bot_id,
-                                pos: Position {
-                                    x: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius),
-                                    y: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius)
-                                }
-                            })
+                (false, Some(ref pos)) => {
+                    println!("Cannonning");
+                    Action::CannonAction(CannonAction {
+                        bot_id: bot.bot_id,
+                        pos: Position {
+                            x: pos.x + delta.x,
+                            y: pos.y + delta.y
                         }
+                    })
+                },
+                (false, None) => {
+                    println!("Radarign");
+                    Action::RadarAction(RadarAction {
+                        bot_id: bot.bot_id,
+                        pos: Position {
+                            x: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius),
+                            y: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius)
+                        }
+                    })
                 }
             }
 

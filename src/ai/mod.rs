@@ -131,7 +131,7 @@ impl Ai for RandomAi {
                 (true, _) => {
                     println!("bot {:?} has to move from {:?}", bot.bot_id, bot.pos);
                     println!("allowed move radius {:?}", self.config.move_);
-                    let allowed_positions = bot.pos.positions_at(self.config.move_);
+                    let allowed_positions = bot.pos.positions_at(self.config.move_, self.config.field_radius);
                     println!("allowed positions {:?}", allowed_positions);
                     let chosen = thread_rng().choose(&allowed_positions).unwrap();
                     println!("moving to {:?}", chosen);
@@ -158,7 +158,7 @@ impl Ai for RandomAi {
                             y: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius)
                         }
                     })*/
-                    let allowed_positions = bot.pos.positions_at(self.config.move_);
+                    let allowed_positions = bot.pos.positions_at(self.config.move_, self.config.field_radius);
                     let chosen = thread_rng().choose(&allowed_positions).unwrap();
                     println!("Bot {:?} moving to {:?}", bot.bot_id, chosen);
                     Action::MoveAction(MoveAction {

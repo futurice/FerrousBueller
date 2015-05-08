@@ -225,7 +225,7 @@ impl Position {
         ret
     }
     #[allow(dead_code)]
-    fn positions_at(&self, distance: u32) -> Vec<Position> {
+    fn positions_at(&self, distance: u32, field_radius: i32) -> Vec<Position> {
         let dist = distance as i32;
         let mut ret: Vec<Position> = Vec::new();
         // start position is bottom left corner
@@ -245,7 +245,9 @@ impl Position {
             for j in 0..dist {
                 let x = pos.x;
                 let y = pos.y;
-                ret.push(pos);
+                if pos.distance(Position { x: 0, y: 0 }) < field_radius {
+                    ret.push(pos);
+                }
                 let ref dir = directions[i];
                 pos = Position { x: x + dir.x, y: y + dir.y }
             }

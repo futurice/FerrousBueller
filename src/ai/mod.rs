@@ -126,7 +126,7 @@ impl Ai for RandomAi {
 
         let living_bots = self.you.bots.iter().filter(|bot| bot.alive);
 
-        living_bots.zip(shoot_deltas.iter()).map(|(bot, delta)| {
+        living_bots.zip(shoot_deltas.iter().cycle()).map(|(bot, delta)| {
             match (move_next, acquired_target) {
                 (true, _) => {
                     println!("bot {:?} has to move from {:?}", bot.bot_id, bot.pos);

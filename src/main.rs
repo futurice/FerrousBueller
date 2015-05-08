@@ -231,7 +231,7 @@ impl Position {
         let directions = vec![
             Position { x:  1, y:  0 },
             Position { x:  1, y: -1 },
-            Position { x: -1, y: -1 },
+            Position { x:  0, y: -1 },
             Position { x: -1, y:  0 },
             Position { x: -1, y:  1 },
             Position { x:  0, y:  1 },

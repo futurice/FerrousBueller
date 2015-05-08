@@ -142,6 +142,7 @@ impl Ai for RandomAi {
                 },
                 (false, Some(ref pos)) => {
                     println!("Cannonning");
+                    // TODO: make sure spread doesn't hit our spotter
                     Action::CannonAction(CannonAction {
                         bot_id: bot.bot_id,
                         pos: Position {
@@ -151,14 +152,9 @@ impl Ai for RandomAi {
                     })
                 },
                 (false, None) => {
-                    /*Action::RadarAction(RadarAction {
-                        bot_id: bot.bot_id,
-                        pos: Position {
-                            x: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius),
-                            y: thread_rng().gen_range(-self.config.field_radius, self.config.field_radius)
-                        }
-                    })*/
                     let allowed_positions = bot.pos.positions_at(self.config.move_, self.config.field_radius);
+                    // TODO: don't move closer to a friend
+                    // TODO: don't move to an asteroid position
                     let chosen = thread_rng().choose(&allowed_positions).unwrap();
                     println!("Bot {:?} moving to {:?}", bot.bot_id, chosen);
                     Action::MoveAction(MoveAction {

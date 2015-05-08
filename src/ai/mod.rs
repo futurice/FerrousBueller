@@ -32,10 +32,22 @@ pub trait Ai {
 }
 
 #[derive(Debug, Default)]
+struct MapTile {
+    pos: Position,
+    asteroid: bool
+}
+
+impl PartialEq for MapTile {
+    fn eq(&self, other: &MapTile) -> bool {
+        self.pos == other.pos
+    }
+}
+
+#[derive(Debug, Default)]
 struct State {
     //global state
     last_target: Option<Position>,
-    asteroids: Vec<Position>,
+    asteroid_map: Vec<MapTile>,
     //bot state
     bot_states: Vec<BotState>
 }
@@ -66,7 +78,7 @@ impl Ai for RandomAi {
         {
             match event {
                 Event::DamagedEvent(de) => {
-                    println!("Bot ID: {} dealt {} damage!",de.bot_id, de.damage);
+                    //println!("Bot ID: {} dealt {} damage!",de.bot_id, de.damage);
                     move_next = true;
                 },
                 Event::HitEvent(he) => {
@@ -74,7 +86,7 @@ impl Ai for RandomAi {
                          Some(ref tar) => Some(Position {x: tar.x, y:tar.y}),
                          None => None
                      };
-                     println!("Bot ID: {} hit enemy bot: {}", he.source, he.bot_id);
+                     //println!("Bot ID: {} hit enemy bot: {}", he.source, he.bot_id);
                      },
                 Event::DieEvent(de) => println!("Bot ID: {} died.", de.bot_id),
                 Event::SeeEvent(se) =>{
@@ -83,8 +95,8 @@ impl Ai for RandomAi {
                         Some(ref tar) => self.current_state.last_target = Some(Position{x: tar.x, y:tar.y}) ,
                         None => {}
                     };
-                     println!("Bot ID: {} saw bot: {} at x:{}, y:{}", se.bot_id,
-                    se.source, se.pos.x, se.pos.y)
+                    //println!("Bot ID: {} saw bot: {} at x:{}, y:{}", se.bot_id,
+                    //se.source, se.pos.x, se.pos.y)
                     },
                 Event::RadarEchoEvent(ree) => {
                     acquired_target = Some(Position { x: ree.pos.x, y: ree.pos.y });
@@ -92,29 +104,32 @@ impl Ai for RandomAi {
                         Some(ref tar) => self.current_state.last_target = Some(Position {x:tar.x, y:tar.y}),
                         None => {}
                     };
-                    println!("An enemy was radar-detected in a radius centered at x:{}, y:{}",
-                        ree.pos.x, ree.pos.y)
+                    //println!("An enemy was radar-detected in a radius centered at x:{}, y:{}",
+                    //    ree.pos.x, ree.pos.y)
                 },
                 Event::DetectedEvent(dte) => {
-                    println!("Bot ID: {} got radar-detected!", dte.bot_id);
+                    //println!("Bot ID: {} got radar-detected!", dte.bot_id);
                     move_next = true;
                 },
-                Event::NoActionEvent(noe) => println!("Bot ID: {} did nothing!", noe.bot_id),
-                Event::MoveEvent(me) => println!("Bot ID {} moved to x:{}, y:{}", me.bot_id,
-                    me.pos.x, me.pos.y),
+                Event::NoActionEvent(noe) => {},//println!("Bot ID: {} did nothing!", noe.bot_id),
+                Event::MoveEvent(me) => {}, //println!("Bot ID {} moved to x:{}, y:{}", me.bot_id,
+                    //me.pos.x, me.pos.y),
                 Event::SeeAsteroidEvent(sae) => {
-                    match self.current_state.asteroids.contains(&sae.pos) {
+                    match self.current_state.asteroid_map.contains(&MapTile { pos: sae.pos, asteroid: true }) {
                         true => {},
                         false => {
-                            println!("Asteroid stored at x:{}, y:{}", sae.pos.x, sae.pos.y);
-                            self.current_state.asteroids.push(sae.pos)
+                            self.current_state.asteroid_map.push(MapTile { pos: sae.pos, asteroid: true });
+                            println!("Asteroid stored at x:{}, y:{}. Asteroids saved {}/{:?}",
+                                sae.pos.x,
+                                sae.pos.y,
+                                self.current_state.asteroid_map.len(),
+                                self.config.asteroids
+                            );
                         }
                     }
                 }
             }
         }
-
-        println!("Last target {:?}", self.current_state.last_target);
 
         let random_x_offset = thread_rng().gen_range(0, 2);
 
@@ -126,22 +141,28 @@ impl Ai for RandomAi {
 
         let living_bots = self.you.bots.iter().filter(|bot| bot.alive);
 
+        // Save the asteroid state for each hexagon
+        for bot in self.you.bots.iter().filter(|bot| bot.alive) {
+            //println!("Bot visibility {:?}", bot.pos.positions_within(self.config.see as u32));
+
+        }
+
         living_bots.zip(shoot_deltas.iter().cycle()).map(|(bot, delta)| {
             match (move_next, acquired_target) {
                 (true, _) => {
-                    println!("bot {:?} has to move from {:?}", bot.bot_id, bot.pos);
-                    println!("allowed move radius {:?}", self.config.move_);
+                    //println!("bot {:?} has to move from {:?}", bot.bot_id, bot.pos);
+                    //println!("allowed move radius {:?}", self.config.move_);
                     let allowed_positions = bot.pos.positions_at(self.config.move_, self.config.field_radius);
-                    println!("allowed positions {:?}", allowed_positions);
+                    //println!("allowed positions {:?}", allowed_positions);
                     let chosen = thread_rng().choose(&allowed_positions).unwrap();
-                    println!("moving to {:?}", chosen);
+                    //println!("moving to {:?}", chosen);
                     Action::MoveAction(MoveAction {
                                         bot_id: bot.bot_id,
                                         pos: Position { x: chosen.x, y: chosen. y}
                     })
                 },
                 (false, Some(ref pos)) => {
-                    println!("Cannonning");
+                    // println!("Cannonning");
                     // TODO: make sure spread doesn't hit our spotter
                     Action::CannonAction(CannonAction {
                         bot_id: bot.bot_id,
@@ -156,7 +177,7 @@ impl Ai for RandomAi {
                     // TODO: don't move closer to a friend
                     // TODO: don't move to an asteroid position
                     let chosen = thread_rng().choose(&allowed_positions).unwrap();
-                    println!("Bot {:?} moving to {:?}", bot.bot_id, chosen);
+                    //println!("Bot {:?} moving to {:?}", bot.bot_id, chosen);
                     Action::MoveAction(MoveAction {
                                         bot_id: bot.bot_id,
                                         pos: Position { x: chosen.x, y: chosen. y}

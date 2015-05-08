@@ -266,6 +266,17 @@ impl Position {
             }
         })
     }
+    fn move_away_from(&self, target: Position, steps: u32) -> Position {
+        let allowed_positions = self.positions_within(steps);
+        allowed_positions.iter().fold(*self, |memo, pos| {
+            if pos.distance(target) > memo.distance(target) {
+                *pos
+            }
+            else {
+                memo
+            }
+        })
+    }
     fn contains_any_within(&self, positions: &Vec<&Position>, steps: i32) -> bool {
         let usteps = steps as u32;
         let area = self.positions_within(usteps);

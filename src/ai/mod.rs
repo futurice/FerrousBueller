@@ -190,8 +190,12 @@ impl Ai for RandomAi {
                     //println!("bot {:?} has to move from {:?}", bot.bot_id, bot.pos);
                     //println!("allowed move radius {:?}", self.config.move_);
                     let allowed_positions = bot.pos.positions_at(self.config.move_, self.config.field_radius);
+                    let asteroids: Vec<MapTile> = self.current_state.asteroid_map.clone().into_iter().filter(|tile| tile.asteroid).collect();
+
+                    let allowed_free_positions = filter_asteroids(allowed_positions.clone(), asteroids.clone());
+
                     //println!("allowed positions {:?}", allowed_positions);
-                    let positions_without_others: Vec<Position> = allowed_positions.clone().into_iter().filter(|pos| {
+                    let positions_without_others: Vec<Position> = allowed_free_positions.clone().into_iter().filter(|pos| {
                                 other_bots.iter().fold(true, |memo, other| {
                                 pos.distance(other.pos) > self.config.see
                         })
@@ -237,9 +241,13 @@ impl Ai for RandomAi {
                             match bailout_move {
                                 true => {
                                     let allowed_positions = bot.pos.positions_at(self.config.move_, self.config.field_radius);
+                                    let asteroids: Vec<MapTile> = self.current_state.asteroid_map.clone().into_iter().filter(|tile| tile.asteroid).collect();
+
+                                    let allowed_free_positions = filter_asteroids(allowed_positions.clone(), asteroids.clone());
+
                                     // TODO: don't move closer to a friend
                                     // TODO: don't move to an asteroid position
-                                    let positions_without_others: Vec<Position> = allowed_positions.clone().into_iter().filter(|pos| {
+                                    let positions_without_others: Vec<Position> = allowed_free_positions.clone().into_iter().filter(|pos| {
                                         other_bots.iter().fold(true, |memo, other| {
                                             pos.distance(other.pos) > self.config.see
                                         })
@@ -271,10 +279,9 @@ impl Ai for RandomAi {
                     let asteroids: Vec<MapTile> = self.current_state.asteroid_map.clone().into_iter().filter(|tile| tile.asteroid).collect();
 
                     let allowed_free_positions = filter_asteroids(allowed_positions.clone(), asteroids.clone());
-                    println!("Positions {:?} without asteroids {:?}", allowed_positions.clone().len(), allowed_free_positions.clone().len());
                     // TODO: don't move closer to a friend
                     // TODO: don't move to an asteroid position
-                    let positions_without_others: Vec<Position> = allowed_positions.clone().into_iter().filter(|pos| {
+                    let positions_without_others: Vec<Position> = allowed_free_positions.clone().into_iter().filter(|pos| {
                                 other_bots.iter().fold(true, |memo, other| {
                                 pos.distance(other.pos) > self.config.see
                         })

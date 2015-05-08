@@ -73,7 +73,7 @@ impl Ai for RandomAi {
 
         let mut acquired_target: Option<Position> = None;
         let mut move_next = false;
-        let mut spotter_bot: Option<u32> = None;
+        let mut spotter_bot_id: Option<u32> = None;
 
         for event in events.into_iter()
         {
@@ -91,7 +91,7 @@ impl Ai for RandomAi {
                      },
                 Event::DieEvent(de) => println!("Bot ID: {} died.", de.bot_id),
                 Event::SeeEvent(se) =>{
-                    spotter_bot = Some(se.bot_id);
+                    spotter_bot_id = Some(se.source);
                     acquired_target = Some(Position{x: se.pos.x, y: se.pos.y});
                     match acquired_target{
                         Some(ref tar) => {
@@ -123,12 +123,12 @@ impl Ai for RandomAi {
                         true => {},
                         false => {
                             self.current_state.asteroid_map.push(MapTile { pos: sae.pos, asteroid: true });
-                            println!("Asteroid stored at x:{}, y:{}. Asteroids saved {}/{:?}",
-                                sae.pos.x,
-                                sae.pos.y,
-                                self.current_state.asteroid_map.len(),
-                                self.config.asteroids
-                            );
+                            // println!("Asteroid stored at x:{}, y:{}. Asteroids saved {}/{:?}",
+                            //     sae.pos.x,
+                            //     sae.pos.y,
+                            //     self.current_state.asteroid_map.len(),
+                            //     self.config.asteroids
+                            // );
                         }
                     }
                 }
@@ -145,6 +145,11 @@ impl Ai for RandomAi {
 
         let botpositions: Vec<&Position> = self.you.bots.iter().map(|bot| &bot.pos).collect();
         let living_bots = self.you.bots.iter().filter(|bot| bot.alive);
+
+        let spotter_bot = match spotter_bot_id {
+            Some(id) => self.get_bot_by_id(id),
+            _ => None
+        };
 
         // Save the asteroid state for each hexagon
         for bot in self.you.bots.iter().filter(|bot| bot.alive) {
@@ -166,39 +171,51 @@ impl Ai for RandomAi {
                                         pos: Position { x: chosen.x, y: chosen. y}
                     })
                 },
-                (false, Some(ref pos)) => {
-                    // println!("Cannonning");
-                    // TODO: make sure spread doesn't hit our spotter
-                    let mut cannonpos = Position {
-                        x: pos.x + delta.x,
-                        y: pos.y + delta.y
-                    };
-                    let mut bailout_move = false;
-                    while cannonpos.contains_any_within(&botpositions, self.config.cannon) {
-                        println!("Moving cannonpos {:?} to avoid hit", cannonpos);
-                        if cannonpos.x == pos.x && cannonpos.y == pos.y {
-                            bailout_move = true;
-                            break;
-                        }
-                        cannonpos = cannonpos.move_towards(*pos, 1);
-                        println!("Moved to {:?}", cannonpos);
-                    }
-                    match bailout_move {
-                        true => {
-                            let allowed_positions = bot.pos.positions_at(self.config.move_, self.config.field_radius);
-                            // TODO: don't move closer to a friend
-                            // TODO: don't move to an asteroid position
-                            let chosen = thread_rng().choose(&allowed_positions).unwrap();
-                            println!("Bot {:?} moving to {:?}", bot.bot_id, chosen);
+                (false, Some(ref tgtpos)) => {
+                    match spotter_bot {
+                        Some(sbot) if sbot.bot_id == bot.bot_id => {
+                            let topos = bot.pos.move_away_from(tgtpos, self.config.move_);
+                            println!("Moving {:?} to {:?}", bot.bot_id, topos);
                             Action::MoveAction(MoveAction {
-                                                bot_id: bot.bot_id,
-                                                pos: Position { x: chosen.x, y: chosen. y}
+                                bot_id: bot.bot_id,
+                                pos: topos
                             })
                         },
-                        false => Action::CannonAction(CannonAction {
-                            bot_id: bot.bot_id,
-                            pos: cannonpos
-                        })
+                        _ => {
+                            // println!("Cannonning");
+                            // TODO: make sure spread doesn't hit our spotter
+                            let mut cannonpos = Position {
+                                x: tgtpos.x + delta.x,
+                                y: tgtpos.y + delta.y
+                            };
+                            let mut bailout_move = false;
+                            while cannonpos.contains_any_within(&botpositions, self.config.cannon) {
+                                //println!("Moving cannonpos {:?} to avoid hit", cannonpos);
+                                if cannonpos.x == tgtpos.x && cannonpos.y == tgtpos.y {
+                                    bailout_move = true;
+                                    break;
+                                }
+                                cannonpos = cannonpos.move_towards(*tgtpos, 1);
+                                //println!("Moved to {:?}", cannonpos);
+                            }
+                            match bailout_move {
+                                true => {
+                                    let allowed_positions = bot.pos.positions_at(self.config.move_, self.config.field_radius);
+                                    // TODO: don't move closer to a friend
+                                    // TODO: don't move to an asteroid position
+                                    let chosen = thread_rng().choose(&allowed_positions).unwrap();
+                                    //println!("Bot {:?} moving to {:?}", bot.bot_id, chosen);
+                                    Action::MoveAction(MoveAction {
+                                                        bot_id: bot.bot_id,
+                                                        pos: Position { x: chosen.x, y: chosen. y}
+                                    })
+                                },
+                                false => Action::CannonAction(CannonAction {
+                                    bot_id: bot.bot_id,
+                                    pos: cannonpos
+                                })
+                            }
+                        }
                     }
                 },
                 (false, None) => {

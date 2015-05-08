@@ -78,7 +78,7 @@ fn test_parse_event() {
     }
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, Clone)]
 pub struct Bot {
     #[serde(rename="botId")] pub bot_id: u32,
     pub name: String,

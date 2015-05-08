@@ -191,7 +191,8 @@ pub struct GameConfig {
     radar: i32,
     see: i32,
     #[serde(rename="maxCount")] max_count: i32,
-    #[serde(rename="loopTime")] loop_time: i32
+    #[serde(rename="loopTime")] loop_time: i32,
+    asteroids: Option<i32>
 }
 
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]

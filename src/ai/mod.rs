@@ -139,6 +139,7 @@ impl Ai for RandomAi {
             Position { x: random_x_offset, y: -1 },
         ];
 
+        let botpositions: Vec<&Position> = self.you.bots.iter().map(|bot| &bot.pos).collect();
         let living_bots = self.you.bots.iter().filter(|bot| bot.alive);
 
         // Save the asteroid state for each hexagon
@@ -164,13 +165,37 @@ impl Ai for RandomAi {
                 (false, Some(ref pos)) => {
                     // println!("Cannonning");
                     // TODO: make sure spread doesn't hit our spotter
-                    Action::CannonAction(CannonAction {
-                        bot_id: bot.bot_id,
-                        pos: Position {
-                            x: pos.x + delta.x,
-                            y: pos.y + delta.y
+                    let mut cannonpos = Position {
+                        x: pos.x + delta.x,
+                        y: pos.y + delta.y
+                    };
+                    let mut bailout_move = false;
+                    while cannonpos.contains_any_within(&botpositions, self.config.cannon) {
+                        println!("Moving cannonpos {:?} to avoid hit", cannonpos);
+                        if cannonpos.x == pos.x && cannonpos.y == pos.y {
+                            bailout_move = true;
+                            break;
                         }
-                    })
+                        cannonpos = cannonpos.move_towards(*pos, 1);
+                        println!("Moved to {:?}", cannonpos);
+                    }
+                    match bailout_move {
+                        true => {
+                            let allowed_positions = bot.pos.positions_at(self.config.move_, self.config.field_radius);
+                            // TODO: don't move closer to a friend
+                            // TODO: don't move to an asteroid position
+                            let chosen = thread_rng().choose(&allowed_positions).unwrap();
+                            println!("Bot {:?} moving to {:?}", bot.bot_id, chosen);
+                            Action::MoveAction(MoveAction {
+                                                bot_id: bot.bot_id,
+                                                pos: Position { x: chosen.x, y: chosen. y}
+                            })
+                        },
+                        false => Action::CannonAction(CannonAction {
+                            bot_id: bot.bot_id,
+                            pos: cannonpos
+                        })
+                    }
                 },
                 (false, None) => {
                     let allowed_positions = bot.pos.positions_at(self.config.move_, self.config.field_radius);

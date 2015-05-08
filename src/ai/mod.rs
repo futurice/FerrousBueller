@@ -18,7 +18,7 @@
  */
 extern crate rand;
 
-use super::incoming::{Event, Team, TeamNoPosNoHp, RadarEchoEvent, Bot};
+use super::incoming::{Event, Team, TeamNoPosNoHp, Bot};
 use super::{Position, GameConfig};
 
 use self::rand::{thread_rng, Rng};
@@ -28,6 +28,8 @@ pub trait Ai {
     fn respond(&mut self, Vec<Event>) -> Vec<Action>;
     fn set_state(&mut self, config: GameConfig, you: Team, other_teamss: Vec<TeamNoPosNoHp>) -> ();
     fn get_bot_by_id(&self, bot_id:u32) -> Option<&Bot>;
+    fn get_bot_role(&mut self, bot_id:u32) -> Option<&BotRole>;
+    fn set_bot_role(&mut self, bot_id:u32, new_state: BotRole);
     fn is_on_playing_field(&self, pos: &Position) -> bool;
 }
 
@@ -52,11 +54,18 @@ struct State {
     bot_states: Vec<BotState>
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
+enum BotRole{
+    SearchMoving(bool),
+    Dodging(bool),
+    Radaring(bool),
+    Shooting(bool),
+}
+
+#[derive(Debug)]
 struct BotState{
-    is_scanning: bool,
-    is_running: bool,
-    is_shooting: bool
+    bot_id: u32,
+    current_role: BotRole
 }
 
 #[derive(Default)]
@@ -68,7 +77,8 @@ struct RandomAi {
 }
 
 impl Ai for RandomAi {
-    #[allow(unused_variables)]
+
+    #[allow(unused_variables, unused_assignments)]
     fn respond(&mut self, events: Vec<Event>) -> Vec<Action>  {
 
         let mut acquired_target: Option<Position> = None;
@@ -82,13 +92,13 @@ impl Ai for RandomAi {
                     //println!("Bot ID: {} dealt {} damage!",de.bot_id, de.damage);
                     move_next = true;
                 },
-                Event::HitEvent(he) => {
+                Event::HitEvent(he) => { //hit another ship
                      acquired_target = match self.current_state.last_target{
                          Some(ref tar) => Some(Position {x: tar.x, y:tar.y}),
                          None => None
                      };
                      //println!("Bot ID: {} hit enemy bot: {}", he.source, he.bot_id);
-                     },
+                },
                 Event::DieEvent(de) => println!("Bot ID: {} died.", de.bot_id),
                 Event::SeeEvent(se) =>{
                     spotter_bot_id = Some(se.source);
@@ -101,7 +111,7 @@ impl Ai for RandomAi {
                     };
                     //println!("Bot ID: {} saw bot: {} at x:{}, y:{}", se.bot_id,
                     //se.source, se.pos.x, se.pos.y)
-                    },
+                },
                 Event::RadarEchoEvent(ree) => {
                     acquired_target = Some(Position { x: ree.pos.x, y: ree.pos.y });
                     match acquired_target{
@@ -114,6 +124,7 @@ impl Ai for RandomAi {
                 Event::DetectedEvent(dte) => {
                     //println!("Bot ID: {} got radar-detected!", dte.bot_id);
                     move_next = true;
+                    self.set_bot_role(dte.bot_id, BotRole::Dodging(true));
                 },
                 Event::NoActionEvent(noe) => {},//println!("Bot ID: {} did nothing!", noe.bot_id),
                 Event::MoveEvent(me) => {}, //println!("Bot ID {} moved to x:{}, y:{}", me.bot_id,
@@ -240,8 +251,12 @@ impl Ai for RandomAi {
         self.other_teams = other_teams;
 
         self.current_state.bot_states = Vec::new();
+        for bot in self.you.bots.iter(){
+            //self.current_state.bot_states.push(BotState{bot_id:bot.bot_id, is_scanning: false, is_running: false, is_shooting: false});
+        }
     }
 
+    #[allow(unused_assignments)]
     fn get_bot_by_id(&self, bot_id:u32) -> Option<&Bot>{
         let mut bot_vec: Vec<&Bot> = self.you.bots.iter().filter(|bot| bot.bot_id == bot_id).collect();
         let return_bot: Option<&Bot> = bot_vec.pop();
@@ -250,6 +265,32 @@ impl Ai for RandomAi {
 
     fn is_on_playing_field(&self, pos: &Position) -> bool {
         pos.distance(Position { x: 0, y: 0 }) <= self.config.field_radius
+    }
+
+    #[allow(unused_assignments)]
+    fn set_bot_role(&mut self, bot_id: u32, new_role: BotRole){
+        let mut found_bot_id = None;
+        {
+            found_bot_id = match self.get_bot_by_id(bot_id){
+                Some(state) => Some(state.bot_id),
+                None => None
+            }
+        }
+        match found_bot_id{
+            Some(bid) => {
+                let index = self.current_state.bot_states.iter().position(|s| s.bot_id == bid);
+                self.current_state.bot_states[index.unwrap()].current_role = new_role;
+            },
+            None => {}//panic, maybe?
+        }
+    }
+
+    fn get_bot_role(&mut self, bot_id: u32) -> Option<&BotRole>{ //Returns None if it can't find the bot.
+        let index = self.current_state.bot_states.iter().position(|s| s.bot_id == bot_id);
+        match index{
+            Some(i) => Some(&self.current_state.bot_states[i].current_role),
+            None => None
+        }
     }
 }
 

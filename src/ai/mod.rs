@@ -28,6 +28,7 @@ pub trait Ai {
     fn respond(&mut self, Vec<Event>) -> Vec<Action>;
     fn set_state(&mut self, config: GameConfig, you: Team, other_teamss: Vec<TeamNoPosNoHp>) -> ();
     fn get_bot_by_id(&mut self, bot_id:u32) -> Option<&Bot>;
+    fn is_on_playing_field(&self, pos: &Position) -> bool;
 }
 
 #[derive(Debug, Default)]
@@ -167,6 +168,10 @@ impl Ai for RandomAi {
         let mut bot_vec: Vec<&Bot> = self.you.bots.iter().filter(|bot| bot.bot_id == bot_id).collect();
         let return_bot: Option<&Bot> = bot_vec.pop();
         return return_bot;
+    }
+
+    fn is_on_playing_field(&self, pos: &Position) -> bool {
+        pos.distance(Position { x: 0, y: 0 }) <= self.config.field_radius
     }
 }
 

@@ -67,7 +67,7 @@ impl Ai for RandomAi {
                 Event::SeeEvent(se) => println!("Bot ID: {} saw bot: {} at x:{}, y:{}", se.bot_id,
                     se.source, se.pos.x, se.pos.y),
                 Event::RadarEchoEvent(ree) => {
-                    newTarget = Some(Position { x: ree.pos.x, y: ree.pos.y });
+                    self.current_state.last_target = Some(Position { x: ree.pos.x, y: ree.pos.y });
                     println!("An enemy was radar-detected in a radius centered at x:{}, y:{}",
                         ree.pos.x, ree.pos.y)
                 },
@@ -77,18 +77,6 @@ impl Ai for RandomAi {
                     me.pos.x, me.pos.y)
             }
         }
-
-        self.current_state.last_target = match newTarget {
-            Some(pos) => Some(pos),
-            None => {
-                match &self.current_state.last_target {
-                    &Some(ref pos) => Some(Position{ x: pos.x, y: pos.y}),
-                    &None => None
-                }
-            }
-        };
-
-        self.current.state
 
         println!("Last target {:?}", self.current_state);
 

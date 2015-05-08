@@ -29,12 +29,13 @@ pub trait Ai {
     fn set_state(&mut self, config: GameConfig, you: Team, other_teamss: Vec<TeamNoPosNoHp>) -> ();
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct State {
     last_target: Option<Position>,
-    is_scanning: Vec<bool>,
     something_else: bool
 }
+
+impl Copy for State {}
 
 #[derive(Default)]
 struct RandomAi {

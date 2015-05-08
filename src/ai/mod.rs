@@ -97,7 +97,10 @@ impl Ai for RandomAi {
         living_bots.zip(shoot_deltas.iter()).map(|(bot, delta)| {
             match move_next {
                 true => {
-                    let allowed_positions = bot.pos.positions_within(self.config.move_);
+                    println!("bot {:?} has to move from {:?}", bot.bot_id, bot.pos);
+                    println!("allowed move radius {:?}", self.config.move_);
+                    let allowed_positions = bot.pos.positions_at(self.config.move_);
+                    println!("allowed positions {:?}", allowed_positions);
                     let chosen = thread_rng().choose(&allowed_positions).unwrap();
                     println!("moving to {:?}", chosen);
                     Action::MoveAction(MoveAction {

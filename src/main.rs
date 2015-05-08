@@ -221,6 +221,32 @@ impl Position {
         }
         ret
     }
+    #[allow(dead_code)]
+    fn positions_at(&self, distance: u32) -> Vec<Position> {
+        let dist = distance as i32;
+        let mut ret: Vec<Position> = Vec::new();
+        // start position is bottom left corner
+        let mut pos = Position { x: self.x - dist, y: self.y + dist };
+        println!("Starting from {:?}, corner at distance {:?} is {:?}", self, dist, pos);
+        let directions = vec![
+            Position { x:  1, y:  0 },
+            Position { x:  1, y: -1 },
+            Position { x: -1, y: -1 },
+            Position { x: -1, y:  0 },
+            Position { x: -1, y:  1 },
+            Position { x:  0, y:  1 },
+        ];
+        for i in 0..6 {
+            for j in 0..dist {
+                let x = pos.x;
+                let y = pos.y;
+                ret.push(pos);
+                let ref dir = directions[i];
+                pos = Position { x: x + dir.x, y: y + dir.y }
+            }
+        }
+        ret
+    }
 }
 
 #[test]

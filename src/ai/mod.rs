@@ -27,13 +27,13 @@ use std::default::Default;
 pub trait Ai {
     fn respond(&mut self, Vec<Event>) -> Vec<Action>;
     fn set_state(&mut self, config: GameConfig, you: Team, other_teamss: Vec<TeamNoPosNoHp>) -> ();
-    fn get_bot_by_id(&self, bot_id:u32) -> Option<&Bot>;
+    fn get_bot_by_id(&mut self, bot_id:u32) -> Option<&Bot>;
     fn get_bot_role(&mut self, bot_id:u32) -> Option<&BotRole>;
     fn set_bot_role(&mut self, bot_id:u32, new_state: BotRole);
     fn is_on_playing_field(&self, pos: &Position) -> bool;
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct MapTile {
     pos: Position,
     asteroid: bool
@@ -74,6 +74,10 @@ struct RandomAi {
     you: Team,
     other_teams: Vec<TeamNoPosNoHp>,
     current_state: State
+}
+
+fn filter_asteroids(positions: Vec<Position>, asteroids: Vec<MapTile>) -> Vec<Position> {
+    positions.into_iter().filter(|pos| !asteroids.contains(&MapTile { pos: *pos, asteroid: true })).collect()
 }
 
 impl Ai for RandomAi {
@@ -154,19 +158,30 @@ impl Ai for RandomAi {
             Position { x: random_x_offset, y: -1 },
         ];
 
-        let botpositions: Vec<&Position> = self.you.bots.iter().map(|bot| &bot.pos).collect();
+        let botpositions: Vec<Position> = self.you.bots.iter().map(|bot| bot.pos).collect();
+
         let living_bots = self.you.bots.iter().filter(|bot| bot.alive);
 
-        let spotter_bot = match spotter_bot_id {
-            Some(id) => self.get_bot_by_id(id),
-            _ => None
-        };
+        let tile_count = Position { x:0, y:0 }.positions_within(self.config.field_radius as u32).len();
 
         // Save the asteroid state for each tile
         for bot in self.you.bots.iter().filter(|bot| bot.alive) {
             //println!("Bot visibility {:?}", bot.pos.positions_within(self.config.see as u32));
-
+            for hex in bot.pos.positions_within(self.config.see as u32) {
+                match self.current_state.asteroid_map.contains(&MapTile { pos: hex, asteroid: true }) {
+                    true => {},
+                    false => {
+                        // Asteroids added already above, if a tile is missing, add asteroid is false
+                        self.current_state.asteroid_map.push(MapTile { pos: hex, asteroid: false });
+                        println!("MapTile INDUBITABLY stored at x:{}, y:{}",
+                             hex.x,
+                             hex.y);
+                    }
+                }
+            }
         }
+
+        println!("{}% of map tiles stored", (self.current_state.asteroid_map.len() as f32 / tile_count as f32) * 100 as f32);
 
         living_bots.zip(shoot_deltas.iter().cycle()).map(|(bot, delta)| {
             let other_bots: Vec<Bot> = self.you.bots.clone().into_iter().filter(|a_bot| a_bot.bot_id != bot.bot_id).collect();
@@ -193,8 +208,8 @@ impl Ai for RandomAi {
                     })
                 },
                 (false, Some(ref tgtpos)) => {
-                    match spotter_bot {
-                        Some(sbot) if sbot.bot_id == bot.bot_id => {
+                    match spotter_bot_id {
+                        Some(sbot_id) if sbot_id == bot.bot_id => {
                             let topos = bot.pos.move_away_from(tgtpos, self.config.move_);
                             //println!("Moving {:?} to {:?}", bot.bot_id, topos);
                             Action::MoveAction(MoveAction {
@@ -210,7 +225,7 @@ impl Ai for RandomAi {
                                 y: tgtpos.y + delta.y
                             };
                             let mut bailout_move = false;
-                            while cannonpos.contains_any_within(&botpositions, self.config.cannon) {
+                            while cannonpos.contains_any_within(botpositions.clone(), self.config.cannon) {
                                 //println!("Moving cannonpos {:?} to avoid hit", cannonpos);
                                 if cannonpos.x == tgtpos.x && cannonpos.y == tgtpos.y {
                                     bailout_move = true;
@@ -253,6 +268,10 @@ impl Ai for RandomAi {
                 },
                 (false, None) => {
                     let allowed_positions = bot.pos.positions_at(self.config.move_, self.config.field_radius);
+                    let asteroids: Vec<MapTile> = self.current_state.asteroid_map.clone().into_iter().filter(|tile| tile.asteroid).collect();
+
+                    let allowed_free_positions = filter_asteroids(allowed_positions.clone(), asteroids.clone());
+                    println!("Positions {:?} without asteroids {:?}", allowed_positions.clone().len(), allowed_free_positions.clone().len());
                     // TODO: don't move closer to a friend
                     // TODO: don't move to an asteroid position
                     let positions_without_others: Vec<Position> = allowed_positions.clone().into_iter().filter(|pos| {
@@ -272,7 +291,7 @@ impl Ai for RandomAi {
                     //println!("Bot {:?} moving to {:?}", bot.bot_id, chosen);
                     Action::MoveAction(MoveAction {
                                         bot_id: bot.bot_id,
-                                        pos: Position { x: chosen.x, y: chosen. y}
+                                        pos: Position { x: chosen.x, y: chosen.y}
                     })
                 }
             }
@@ -292,7 +311,7 @@ impl Ai for RandomAi {
     }
 
     #[allow(unused_assignments)]
-    fn get_bot_by_id(&self, bot_id:u32) -> Option<&Bot>{
+    fn get_bot_by_id(&mut self, bot_id:u32) -> Option<&Bot>{
         let mut bot_vec: Vec<&Bot> = self.you.bots.iter().filter(|bot| bot.bot_id == bot_id).collect();
         let return_bot: Option<&Bot> = bot_vec.pop();
         return return_bot;

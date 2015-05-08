@@ -65,7 +65,8 @@ enum BotRole{
 #[derive(Debug)]
 struct BotState{
     bot_id: u32,
-    current_role: BotRole
+    current_role: BotRole,
+    previous_role: Option<BotRole>
 }
 
 #[derive(Default)]
@@ -91,12 +92,14 @@ impl Ai for RandomAi {
                 Event::DamagedEvent(de) => {
                     //println!("Bot ID: {} dealt {} damage!",de.bot_id, de.damage);
                     move_next = true;
+                    self.set_bot_role(de.bot_id, BotRole::Dodging(true));
                 },
                 Event::HitEvent(he) => { //hit another ship
                      acquired_target = match self.current_state.last_target{
                          Some(ref tar) => Some(Position {x: tar.x, y:tar.y}),
                          None => None
                      };
+                     self.set_bot_role(he.source, BotRole::Shooting(true));
                      //println!("Bot ID: {} hit enemy bot: {}", he.source, he.bot_id);
                 },
                 Event::DieEvent(de) => println!("Bot ID: {} died.", de.bot_id),
@@ -109,6 +112,7 @@ impl Ai for RandomAi {
                         },
                         None => {}
                     };
+                    self.set_bot_role(se.bot_id, BotRole::Shooting(true));
                     //println!("Bot ID: {} saw bot: {} at x:{}, y:{}", se.bot_id,
                     //se.source, se.pos.x, se.pos.y)
                 },
@@ -252,7 +256,7 @@ impl Ai for RandomAi {
 
         self.current_state.bot_states = Vec::new();
         for bot in self.you.bots.iter(){
-            self.current_state.bot_states.push(BotState{bot_id:bot.bot_id, current_role: BotRole::SearchMoving(true)});
+            self.current_state.bot_states.push(BotState{bot_id:bot.bot_id, current_role: BotRole::SearchMoving(true), previous_role: None});
         }
     }
 
@@ -279,6 +283,7 @@ impl Ai for RandomAi {
         match found_bot_id{
             Some(bid) => {
                 let index = self.current_state.bot_states.iter().position(|s| s.bot_id == bid);
+                //self.current_state.bot_states[index.unwrap()].previous_role = Some(self.current_state.bot_states[index.unwrap()].current_role);
                 self.current_state.bot_states[index.unwrap()].current_role = new_role;
             },
             None => {}//panic, maybe?

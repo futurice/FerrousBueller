@@ -56,31 +56,27 @@ impl Ai for RandomAi {
     #[allow(unused_variables)]
     fn respond(&mut self, events: Vec<Event>) -> Vec<Action>  {
 
+        let mut newTarget = None;
+
         for event in events.into_iter()
         {
-            match event{
+            match event {
                 Event::DamagedEvent(de) => println!("Bot ID: {} dealt {} damage!",de.bot_id, de.damage),
                 Event::HitEvent(he) => println!("Bot ID: {} got hit by bot: {}", he.bot_id, he.source),
                 Event::DieEvent(de) => println!("Bot ID: {} died.", de.bot_id),
                 Event::SeeEvent(se) => println!("Bot ID: {} saw bot: {} at x:{}, y:{}", se.bot_id,
                     se.source, se.pos.x, se.pos.y),
-                Event::RadarEchoEvent(ree) => println!("An enemy was radar-detected in a radius centered at x:{}, y:{}", ree.pos.x, ree.pos.y),
+                Event::RadarEchoEvent(ree) => {
+                    newTarget = Some(Position { x: ree.pos.x, y: ree.pos.y });
+                    println!("An enemy was radar-detected in a radius centered at x:{}, y:{}",
+                        ree.pos.x, ree.pos.y)
+                },
                 Event::DetectedEvent(dte) => println!("Bot ID: {} got radar-detected!", dte.bot_id),
                 Event::NoActionEvent(noe) => println!("Bot ID: {} did nothing!", noe.bot_id),
                 Event::MoveEvent(me) => println!("Bot ID {} moved to x:{}, y:{}", me.bot_id,
                     me.pos.x, me.pos.y)
             }
         }
-
-        let mut newTarget = None;
-        for event in events {
-            newTarget = match event {
-                Event::RadarEchoEvent(radarEvent) => Some(Position{ x: radarEvent.pos.x, y: radarEvent.pos.y}),
-                Event::HitEvent(hitEvent) => None,
-                Event::DetectedEvent(detectedEvent) => None,
-                _ => None
-            }
-        };
 
         self.current_state.last_target = match newTarget {
             Some(pos) => Some(pos),

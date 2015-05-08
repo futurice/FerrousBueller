@@ -236,6 +236,8 @@ impl Position {
             Position { x: -1, y:  1 },
             Position { x:  0, y:  1 },
         ];
+        // walk the circumference, each edge is always the length of
+        // the radius
         for i in 0..6 {
             for j in 0..dist {
                 let x = pos.x;

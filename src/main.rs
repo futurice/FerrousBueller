@@ -277,7 +277,7 @@ impl Position {
             }
         })
     }
-    fn contains_any_within(&self, positions: &Vec<&Position>, steps: i32) -> bool {
+    fn contains_any_within(&self, positions: Vec<Position>, steps: i32) -> bool {
         let usteps = steps as u32;
         let area = self.positions_within(usteps);
         for pos in positions {

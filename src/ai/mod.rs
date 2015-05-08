@@ -27,7 +27,7 @@ use std::default::Default;
 pub trait Ai {
     fn respond(&mut self, Vec<Event>) -> Vec<Action>;
     fn set_state(&mut self, config: GameConfig, you: Team, other_teamss: Vec<TeamNoPosNoHp>) -> ();
-    fn get_bot_by_id(&self, bot_id:u32) -> Option<&Bot>;
+    fn get_bot_by_id(&mut self, bot_id:u32) -> Option<&Bot>;
     fn get_bot_role(&mut self, bot_id:u32) -> Option<&BotRole>;
     fn set_bot_role(&mut self, bot_id:u32, new_state: BotRole);
     fn is_on_playing_field(&self, pos: &Position) -> bool;
@@ -158,26 +158,24 @@ impl Ai for RandomAi {
             Position { x: random_x_offset, y: -1 },
         ];
 
-        let botpositions: Vec<&Position> = self.you.bots.iter().map(|bot| &bot.pos).collect();
-        let living_bots = self.you.bots.iter().filter(|bot| bot.alive);
+        let botpositions: Vec<Position> = self.you.bots.iter().map(|bot| bot.pos).collect();
 
-        let spotter_bot = match spotter_bot_id {
-            Some(id) => self.get_bot_by_id(id),
-            _ => None
-        };
+        let living_bots = self.you.bots.iter().filter(|bot| bot.alive);
 
         let tile_count = Position { x:0, y:0 }.positions_within(self.config.field_radius as u32).len();
         // Save the asteroid state for each tile
         for bot in self.you.bots.iter().filter(|bot| bot.alive) {
             //println!("Bot visibility {:?}", bot.pos.positions_within(self.config.see as u32));
-            match self.current_state.asteroid_map.contains(&MapTile { pos: bot.pos, asteroid: true }) {
-                true => {},
-                false => {
-                    // Asteroids added already above, if a tile is missing, add asteroid is false
-                    //self.current_state.asteroid_map.push(MapTile { pos: bot.pos, asteroid: false });
-                    println!("MapTile ALMOST stored at x:{}, y:{}",
-                         bot.pos.x,
-                         bot.pos.y);
+            for hex in bot.pos.positions_within(self.config.see as u32) {
+                match self.current_state.asteroid_map.contains(&MapTile { pos: hex, asteroid: true }) {
+                    true => {},
+                    false => {
+                        // Asteroids added already above, if a tile is missing, add asteroid is false
+                        self.current_state.asteroid_map.push(MapTile { pos: hex, asteroid: false });
+                        println!("MapTile INDUBITABLY stored at x:{}, y:{}",
+                             hex.x,
+                             hex.y);
+                    }
                 }
             }
         }
@@ -199,8 +197,8 @@ impl Ai for RandomAi {
                     })
                 },
                 (false, Some(ref tgtpos)) => {
-                    match spotter_bot {
-                        Some(sbot) if sbot.bot_id == bot.bot_id => {
+                    match spotter_bot_id {
+                        Some(sbot_id) if sbot_id == bot.bot_id => {
                             let topos = bot.pos.move_away_from(tgtpos, self.config.move_);
                             println!("Moving {:?} to {:?}", bot.bot_id, topos);
                             Action::MoveAction(MoveAction {
@@ -216,7 +214,7 @@ impl Ai for RandomAi {
                                 y: tgtpos.y + delta.y
                             };
                             let mut bailout_move = false;
-                            while cannonpos.contains_any_within(&botpositions, self.config.cannon) {
+                            while cannonpos.contains_any_within(botpositions.clone(), self.config.cannon) {
                                 //println!("Moving cannonpos {:?} to avoid hit", cannonpos);
                                 if cannonpos.x == tgtpos.x && cannonpos.y == tgtpos.y {
                                     bailout_move = true;
@@ -277,7 +275,7 @@ impl Ai for RandomAi {
     }
 
     #[allow(unused_assignments)]
-    fn get_bot_by_id(&self, bot_id:u32) -> Option<&Bot>{
+    fn get_bot_by_id(&mut self, bot_id:u32) -> Option<&Bot>{
         let mut bot_vec: Vec<&Bot> = self.you.bots.iter().filter(|bot| bot.bot_id == bot_id).collect();
         let return_bot: Option<&Bot> = bot_vec.pop();
         return return_bot;

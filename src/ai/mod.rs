@@ -18,7 +18,7 @@
  */
 extern crate rand;
 
-use super::incoming::{Event, Team, TeamNoPosNoHp, RadarEchoEvent};
+use super::incoming::{Event, Team, TeamNoPosNoHp, RadarEchoEvent, Bot};
 use super::{Position, GameConfig};
 
 use self::rand::{thread_rng, Rng};
@@ -27,6 +27,7 @@ use std::default::Default;
 pub trait Ai {
     fn respond(&mut self, Vec<Event>) -> Vec<Action>;
     fn set_state(&mut self, config: GameConfig, you: Team, other_teamss: Vec<TeamNoPosNoHp>) -> ();
+    fn get_bot_by_id(&mut self, bot_id:u32) -> Option<&Bot>;
 }
 
 #[derive(Debug, Default)]
@@ -56,7 +57,7 @@ impl Ai for RandomAi {
     #[allow(unused_variables)]
     fn respond(&mut self, events: Vec<Event>) -> Vec<Action>  {
 
-        let mut new_target: Option<Position> = None;
+        let mut acquired_target: Option<Position> = None;
         let mut move_next = false;
 
         for event in events.into_iter()
@@ -64,13 +65,31 @@ impl Ai for RandomAi {
             match event {
                 Event::DamagedEvent(de) => {
                     println!("Bot ID: {} dealt {} damage!",de.bot_id, de.damage);
+                    move_next = true;
                 },
-                Event::HitEvent(he) => println!("Bot ID: {} hit enemy bot: {}", he.source, he.bot_id),
+                Event::HitEvent(he) => {
+                     acquired_target = match self.current_state.last_target{
+                         Some(ref tar) => Some(Position {x: tar.x, y:tar.y}),
+                         None => None
+                     };
+                     println!("Bot ID: {} hit enemy bot: {}", he.source, he.bot_id);
+                     },
                 Event::DieEvent(de) => println!("Bot ID: {} died.", de.bot_id),
-                Event::SeeEvent(se) => println!("Bot ID: {} saw bot: {} at x:{}, y:{}", se.bot_id,
-                    se.source, se.pos.x, se.pos.y),
+                Event::SeeEvent(se) =>{
+                    acquired_target = Some(Position{x: se.pos.x, y: se.pos.y});
+                    match acquired_target{
+                        Some(ref tar) => self.current_state.last_target = Some(Position{x: tar.x, y:tar.y}) ,
+                        None => {}
+                    };
+                     println!("Bot ID: {} saw bot: {} at x:{}, y:{}", se.bot_id,
+                    se.source, se.pos.x, se.pos.y)
+                    },
                 Event::RadarEchoEvent(ree) => {
-                    new_target = Some(Position { x: ree.pos.x, y: ree.pos.y });
+                    acquired_target = Some(Position { x: ree.pos.x, y: ree.pos.y });
+                    match acquired_target{
+                        Some(ref tar) => self.current_state.last_target = Some(Position {x:tar.x, y:tar.y}),
+                        None => {}
+                    };
                     println!("An enemy was radar-detected in a radius centered at x:{}, y:{}",
                         ree.pos.x, ree.pos.y)
                 },
@@ -80,11 +99,12 @@ impl Ai for RandomAi {
                 },
                 Event::NoActionEvent(noe) => println!("Bot ID: {} did nothing!", noe.bot_id),
                 Event::MoveEvent(me) => println!("Bot ID {} moved to x:{}, y:{}", me.bot_id,
-                    me.pos.x, me.pos.y)
+                    me.pos.x, me.pos.y),
+                Event::SeeAsteroidEvent(sae) => println!("Asteroid seen at x:{}, y:{}", sae.pos.x, sae.pos.y)
             }
         }
 
-        println!("Last target {:?}", self.current_state);
+        println!("Last target {:?}", self.current_state.last_target);
 
         let random_x_offset = thread_rng().gen_range(0, 2);
 
@@ -110,7 +130,7 @@ impl Ai for RandomAi {
                                         pos: Position { x: chosen.x, y: chosen. y}
                     })
                 },
-                false => match new_target {
+                false => match acquired_target {
                     Some(ref pos) => {
                             println!("Cannonning");
                             Action::CannonAction(CannonAction {
@@ -133,7 +153,7 @@ impl Ai for RandomAi {
                         }
                 }
             }
-            
+
         }).collect()
     }
 
@@ -141,6 +161,14 @@ impl Ai for RandomAi {
         self.config = config;
         self.you = you;
         self.other_teams = other_teams;
+
+        self.current_state.bot_states = Vec::new();
+    }
+
+    fn get_bot_by_id(&mut self, bot_id:u32) -> Option<&Bot>{
+        let mut bot_vec: Vec<&Bot> = self.you.bots.iter().filter(|bot| bot.bot_id == bot_id).collect();
+        let return_bot: Option<&Bot> = bot_vec.pop();
+        return return_bot;
     }
 }
 

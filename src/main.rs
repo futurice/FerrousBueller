@@ -266,6 +266,19 @@ impl Position {
             }
         })
     }
+    fn contains_any_within(&self, positions: &Vec<&Position>, steps: i32) -> bool {
+        let usteps = steps as u32;
+        let area = self.positions_within(usteps);
+        for pos in positions {
+            let sames: Vec<&Position> = area.iter()
+                .filter(|p| p.x == pos.x && p.y == pos.y)
+                .collect();
+            if ! sames.is_empty() {
+                return true
+            }
+        }
+        false
+    }
 }
 
 #[test]

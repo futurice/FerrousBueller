@@ -62,6 +62,7 @@ fn parse_event(value: Value) -> Event {
         "detected" => Event::DetectedEvent(json::value::from_value(value).unwrap()),
         "noaction" => Event::NoActionEvent(json::value::from_value(value).unwrap()),
         "move" => Event::MoveEvent(json::value::from_value(value).unwrap()),
+        "seeAsteroid" => Event::SeeAsteroidEvent(json::value::from_value(value).unwrap()),
         _ => panic!("Couldn't parse event")
     }
 }
@@ -165,6 +166,13 @@ pub struct MoveEvent {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct SeeAsteroidEvent{
+    event: String,
+    pub pos: Position
+}
+
+
+#[derive(Debug, Deserialize)]
 pub enum Event {
     DamagedEvent(DamagedEvent),
     HitEvent(HitEvent),
@@ -173,7 +181,8 @@ pub enum Event {
     RadarEchoEvent(RadarEchoEvent),
     DetectedEvent(DetectedEvent),
     NoActionEvent(NoActionEvent),
-    MoveEvent(MoveEvent)
+    MoveEvent(MoveEvent),
+    SeeAsteroidEvent(SeeAsteroidEvent)
 }
 
 #[derive(Debug, Deserialize)]

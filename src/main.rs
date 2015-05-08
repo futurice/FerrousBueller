@@ -230,7 +230,7 @@ impl Position {
         let mut ret: Vec<Position> = Vec::new();
         // start position is bottom left corner
         let mut pos = Position { x: self.x - dist, y: self.y + dist };
-        println!("Starting from {:?}, corner at distance {:?} is {:?}", self, dist, pos);
+        //println!("Starting from {:?}, corner at distance {:?} is {:?}", self, dist, pos);
         let directions = vec![
             Position { x:  1, y:  0 },
             Position { x:  1, y: -1 },
@@ -266,10 +266,10 @@ impl Position {
             }
         })
     }
-    fn move_away_from(&self, target: Position, steps: u32) -> Position {
+    fn move_away_from(&self, target: &Position, steps: u32) -> Position {
         let allowed_positions = self.positions_within(steps);
         allowed_positions.iter().fold(*self, |memo, pos| {
-            if pos.distance(target) > memo.distance(target) {
+            if pos.distance(*target) > memo.distance(*target) {
                 *pos
             }
             else {

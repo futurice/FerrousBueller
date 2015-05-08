@@ -49,23 +49,12 @@ impl Ai for RandomAi {
     #[allow(unused_variables)]
     fn respond(&mut self, events: Vec<Event>) -> Vec<Action>  {
 
-        let mut newTarget = None;
-        for event in events {
-            newTarget = match event {
-                Event::RadarEchoEvent(radarEvent) => Some(Position{ x: radarEvent.pos.x, y: radarEvent.pos.y}),
-                _ => None
+        self.current_state.last_target = events.iter().fold(self.current_state.last_target, |pos, event| {
+            match event {
+                &Event::RadarEchoEvent(ref e) => Some(Position { x: e.pos.x, y: e.pos.y }),
+                _ => pos
             }
-        };
-
-        self.current_state.last_target = match newTarget {
-            Some(pos) => Some(pos),
-            None => {
-                match &self.current_state.last_target {
-                    &Some(ref pos) => Some(Position{ x: pos.x, y: pos.y}),
-                    &None => None
-                }
-            }
-        };
+        });
 
         println!("Last target {:?}", self.current_state);
 

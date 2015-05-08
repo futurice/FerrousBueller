@@ -194,11 +194,13 @@ pub struct GameConfig {
     #[serde(rename="loopTime")] loop_time: i32
 }
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct Position {
     x: i32,
     y: i32
 }
+
+impl Copy for Position {}
 
 impl Position {
     #[allow(dead_code)]
@@ -248,6 +250,18 @@ impl Position {
             }
         }
         ret
+    }
+    #[allow(dead_code)]
+    fn move_towards(&self, target: Position, steps: u32) -> Position {
+        let allowed_positions = self.positions_within(steps);
+        allowed_positions.iter().fold(*self, |memo, pos| {
+            if pos.distance(target) < memo.distance(target) {
+                *pos
+            }
+            else {
+                memo
+            }
+        })
     }
 }
 

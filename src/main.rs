@@ -195,7 +195,7 @@ pub struct GameConfig {
     asteroids: Option<i32>
 }
 
-#[derive(Debug, Deserialize, Serialize, Default, Clone)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone, PartialEq)]
 pub struct Position {
     x: i32,
     y: i32

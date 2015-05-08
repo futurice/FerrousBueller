@@ -35,6 +35,7 @@ pub trait Ai {
 struct State {
     //global state
     last_target: Option<Position>,
+    asteroids: Vec<Position>,
     //bot state
     bot_states: Vec<BotState>
 }
@@ -101,7 +102,15 @@ impl Ai for RandomAi {
                 Event::NoActionEvent(noe) => println!("Bot ID: {} did nothing!", noe.bot_id),
                 Event::MoveEvent(me) => println!("Bot ID {} moved to x:{}, y:{}", me.bot_id,
                     me.pos.x, me.pos.y),
-                Event::SeeAsteroidEvent(sae) => println!("Asteroid seen at x:{}, y:{}", sae.pos.x, sae.pos.y)
+                Event::SeeAsteroidEvent(sae) => {
+                    match self.current_state.asteroids.contains(&sae.pos) {
+                        true => {},
+                        false => {
+                            println!("Asteroid stored at x:{}, y:{}", sae.pos.x, sae.pos.y);
+                            self.current_state.asteroids.push(sae.pos)
+                        }
+                    }
+                }
             }
         }
 

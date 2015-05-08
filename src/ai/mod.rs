@@ -252,7 +252,7 @@ impl Ai for RandomAi {
 
         self.current_state.bot_states = Vec::new();
         for bot in self.you.bots.iter(){
-            //self.current_state.bot_states.push(BotState{bot_id:bot.bot_id, is_scanning: false, is_running: false, is_shooting: false});
+            self.current_state.bot_states.push(BotState{bot_id:bot.bot_id, current_role: BotRole::SearchMoving(true)});
         }
     }
 

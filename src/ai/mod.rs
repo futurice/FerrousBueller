@@ -64,7 +64,6 @@ impl Ai for RandomAi {
             match event {
                 Event::DamagedEvent(de) => {
                     println!("Bot ID: {} dealt {} damage!",de.bot_id, de.damage);
-                    move_next = true;
                 },
                 Event::HitEvent(he) => println!("Bot ID: {} hit enemy bot: {}", he.source, he.bot_id),
                 Event::DieEvent(de) => println!("Bot ID: {} died.", de.bot_id),
@@ -75,7 +74,10 @@ impl Ai for RandomAi {
                     println!("An enemy was radar-detected in a radius centered at x:{}, y:{}",
                         ree.pos.x, ree.pos.y)
                 },
-                Event::DetectedEvent(dte) => println!("Bot ID: {} got radar-detected!", dte.bot_id),
+                Event::DetectedEvent(dte) => {
+                    println!("Bot ID: {} got radar-detected!", dte.bot_id);
+                    move_next = true;
+                },
                 Event::NoActionEvent(noe) => println!("Bot ID: {} did nothing!", noe.bot_id),
                 Event::MoveEvent(me) => println!("Bot ID {} moved to x:{}, y:{}", me.bot_id,
                     me.pos.x, me.pos.y)

@@ -27,7 +27,7 @@ use std::default::Default;
 pub trait Ai {
     fn respond(&mut self, Vec<Event>) -> Vec<Action>;
     fn set_state(&mut self, config: GameConfig, you: Team, other_teamss: Vec<TeamNoPosNoHp>) -> ();
-    fn get_bot_by_id(&mut self, bot_id:u32) -> Option<&Bot>;
+    fn get_bot_by_id(&self, bot_id:u32) -> Option<&Bot>;
     fn is_on_playing_field(&self, pos: &Position) -> bool;
 }
 
@@ -73,6 +73,7 @@ impl Ai for RandomAi {
 
         let mut acquired_target: Option<Position> = None;
         let mut move_next = false;
+        let mut spotter_bot: Option<u32> = None;
 
         for event in events.into_iter()
         {
@@ -90,9 +91,12 @@ impl Ai for RandomAi {
                      },
                 Event::DieEvent(de) => println!("Bot ID: {} died.", de.bot_id),
                 Event::SeeEvent(se) =>{
+                    spotter_bot = Some(se.bot_id);
                     acquired_target = Some(Position{x: se.pos.x, y: se.pos.y});
                     match acquired_target{
-                        Some(ref tar) => self.current_state.last_target = Some(Position{x: tar.x, y:tar.y}) ,
+                        Some(ref tar) => {
+                            self.current_state.last_target = Some(Position{x: tar.x, y:tar.y})
+                        },
                         None => {}
                     };
                     //println!("Bot ID: {} saw bot: {} at x:{}, y:{}", se.bot_id,
@@ -221,7 +225,7 @@ impl Ai for RandomAi {
         self.current_state.bot_states = Vec::new();
     }
 
-    fn get_bot_by_id(&mut self, bot_id:u32) -> Option<&Bot>{
+    fn get_bot_by_id(&self, bot_id:u32) -> Option<&Bot>{
         let mut bot_vec: Vec<&Bot> = self.you.bots.iter().filter(|bot| bot.bot_id == bot_id).collect();
         let return_bot: Option<&Bot> = bot_vec.pop();
         return return_bot;

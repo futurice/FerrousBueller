@@ -28,8 +28,6 @@ pub trait Ai {
     fn respond(&mut self, Vec<Event>) -> Vec<Action>;
     fn set_state(&mut self, config: GameConfig, you: Team, other_teamss: Vec<TeamNoPosNoHp>) -> ();
     fn get_bot_by_id(&mut self, bot_id:u32) -> Option<&Bot>;
-    fn get_bot_role(&mut self, bot_id:u32) -> Option<&BotRole>;
-    fn set_bot_role(&mut self, bot_id:u32, new_state: BotRole);
     fn is_on_playing_field(&self, pos: &Position) -> bool;
 }
 
@@ -52,23 +50,12 @@ struct State {
     asteroid_map: Vec<MapTile>,
     found_asteroids: i32,
     scan_away: bool,
-    //bot state
-    bot_states: Vec<BotState>,
     shoot_count: i32
-}
-
-#[derive(Debug)]
-enum BotRole{
-    SearchMoving(bool),
-    Dodging(bool),
-    Radaring(bool),
-    Shooting(bool),
 }
 
 #[derive(Debug)]
 struct BotState{
     bot_id: u32,
-    current_role: BotRole
 }
 
 #[derive(Default)]
@@ -109,6 +96,7 @@ impl Ai for RandomAi {
         let mut spotter_bot_id: Option<u32> = None;
         let scan_tolerance = 80 as f32;
         let mut shoot_count = self.current_state.shoot_count;
+        let mut bots_to_dodge = Vec::new();
 
         for event in events.into_iter()
         {
@@ -116,6 +104,7 @@ impl Ai for RandomAi {
                 Event::DamagedEvent(de) => {
                     //println!("Bot ID: {} dealt {} damage!",de.bot_id, de.damage);
                     move_next = true;
+                    bots_to_dodge.push(de.bot_id);
                 },
                 Event::HitEvent(he) => { //hit another ship
                      acquired_target = match self.current_state.last_target{
@@ -150,7 +139,7 @@ impl Ai for RandomAi {
                 Event::DetectedEvent(dte) => {
                     //println!("Bot ID: {} got radar-detected!", dte.bot_id);
                     move_next = true;
-                    self.set_bot_role(dte.bot_id, BotRole::Dodging(true));
+                    bots_to_dodge.push(dte.bot_id);
                 },
                 Event::NoActionEvent(noe) => {},//println!("Bot ID: {} did nothing!", noe.bot_id),
                 Event::MoveEvent(me) => {}, //println!("Bot ID {} moved to x:{}, y:{}", me.bot_id,
@@ -223,8 +212,11 @@ impl Ai for RandomAi {
             _ => {}
         }
 
+        let mut move_bot: bool = false;
+
         let actions = living_bots.zip(shoot_deltas.iter().cycle()).map(|(bot, delta)| {
             let other_bots: Vec<Bot> = self.you.bots.clone().into_iter().filter(|a_bot| a_bot.bot_id != bot.bot_id).collect();
+            move_bot = bots_to_dodge.iter().filter(|&&b| b == bot.bot_id).count() > 0;
             match (move_next, acquired_target) {
                 (true, _) => {
                     let chosen = get_move_position(bot,
@@ -313,11 +305,6 @@ impl Ai for RandomAi {
         self.config = config;
         self.you = you;
         self.other_teams = other_teams;
-
-        self.current_state.bot_states = Vec::new();
-        for bot in self.you.bots.iter(){
-            self.current_state.bot_states.push(BotState{bot_id:bot.bot_id, current_role: BotRole::SearchMoving(true)});
-        }
     }
 
     #[allow(unused_assignments)]
@@ -329,32 +316,6 @@ impl Ai for RandomAi {
 
     fn is_on_playing_field(&self, pos: &Position) -> bool {
         pos.distance(Position { x: 0, y: 0 }) <= self.config.field_radius
-    }
-
-    #[allow(unused_assignments)]
-    fn set_bot_role(&mut self, bot_id: u32, new_role: BotRole){
-        let mut found_bot_id = None;
-        {
-            found_bot_id = match self.get_bot_by_id(bot_id){
-                Some(state) => Some(state.bot_id),
-                None => None
-            }
-        }
-        match found_bot_id{
-            Some(bid) => {
-                let index = self.current_state.bot_states.iter().position(|s| s.bot_id == bid);
-                self.current_state.bot_states[index.unwrap()].current_role = new_role;
-            },
-            None => {}//panic, maybe?
-        }
-    }
-
-    fn get_bot_role(&mut self, bot_id: u32) -> Option<&BotRole>{ //Returns None if it can't find the bot.
-        let index = self.current_state.bot_states.iter().position(|s| s.bot_id == bot_id);
-        match index{
-            Some(i) => Some(&self.current_state.bot_states[i].current_role),
-            None => None
-        }
     }
 }
 

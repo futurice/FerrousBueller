@@ -263,7 +263,6 @@ impl Ai for RandomAi {
                             })
                         },
                         _ => {
-                            // TODO: make sure spread doesn't hit our spotter
                             let mut cannonpos = Position {
                                 x: tgtpos.x + (delta.x * shoot_count),
                                 y: tgtpos.y + (delta.y * shoot_count)

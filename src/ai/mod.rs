@@ -50,6 +50,8 @@ struct State {
     //global state
     last_target: Option<Position>,
     asteroid_map: Vec<MapTile>,
+    found_asteroids: i32,
+    scan_away: bool,
     //bot state
     bot_states: Vec<BotState>
 }
@@ -83,11 +85,7 @@ fn filter_asteroids(positions: Vec<Position>, asteroids: Vec<MapTile>) -> Vec<Po
 fn get_move_position(bot: &Bot, move_: u32, see: i32, field_radius: i32, asteroid_map: Vec<MapTile>, other_bots: Vec<Bot>) -> Position {
     let allowed_positions = bot.pos.positions_at(move_, field_radius);
     let asteroids: Vec<MapTile> = asteroid_map.clone().into_iter().filter(|tile| tile.asteroid).collect();
-
     let allowed_free_positions = filter_asteroids(allowed_positions.clone(), asteroids.clone());
-
-    // TODO: don't move closer to a friend
-    // TODO: don't move to an asteroid position
     let positions_without_others: Vec<Position> = allowed_free_positions.clone().into_iter().filter(|pos| {
               other_bots.iter().fold(true, |memo, other| {
               pos.distance(other.pos) > see
@@ -97,9 +95,6 @@ fn get_move_position(bot: &Bot, move_: u32, see: i32, field_radius: i32, asteroi
     if positions_without_others.len() > 0 {
           final_positions = positions_without_others.clone();
     }
-    println!("Positions in total {}, positions far enough of other bots {}",
-             allowed_positions.len(),
-             positions_without_others.len());
     *thread_rng().choose(&final_positions).unwrap()
 }
 
@@ -111,6 +106,7 @@ impl Ai for RandomAi {
         let mut acquired_target: Option<Position> = None;
         let mut move_next = false;
         let mut spotter_bot_id: Option<u32> = None;
+        let scan_tolerance = 80 as f32;
 
         for event in events.into_iter()
         {
@@ -161,6 +157,7 @@ impl Ai for RandomAi {
                         true => {},
                         false => {
                             self.current_state.asteroid_map.push(MapTile { pos: sae.pos, asteroid: true });
+                            self.current_state.found_asteroids = self.current_state.found_asteroids + 1;
                             // println!("Asteroid stored at x:{}, y:{}. Asteroids saved {}/{:?}",
                             //     sae.pos.x,
                             //     sae.pos.y,
@@ -203,8 +200,17 @@ impl Ai for RandomAi {
                 }
             }
         }
-
-        println!("{}% of map tiles stored", (self.current_state.asteroid_map.len() as f32 / tile_count as f32) * 100 as f32);
+        let current_map_coverage = (self.current_state.asteroid_map.len() as f32 / tile_count as f32) * 100 as f32;
+        let enough_coverage = current_map_coverage > scan_tolerance;
+        let enough_asteroids = self.current_state.found_asteroids == self.config.asteroids.unwrap();
+        if enough_coverage || enough_asteroids {
+            self.current_state.scan_away = true;
+        }
+        println!("{}% of map tiles stored, {}/{} asteroids, ready for scanning {}",
+                        current_map_coverage,
+                        self.current_state.found_asteroids,
+                        self.config.asteroids.unwrap(),
+                        self.current_state.scan_away);
 
         living_bots.zip(shoot_deltas.iter().cycle()).map(|(bot, delta)| {
             let other_bots: Vec<Bot> = self.you.bots.clone().into_iter().filter(|a_bot| a_bot.bot_id != bot.bot_id).collect();

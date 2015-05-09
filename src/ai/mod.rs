@@ -227,20 +227,7 @@ impl Ai for RandomAi {
         let actions = living_bots.zip(shoot_deltas.iter().cycle().skip(skip)).map(|(bot, delta)| {
             let other_bots: Vec<Bot> = self.you.bots.clone().into_iter().filter(|a_bot| a_bot.bot_id != bot.bot_id).collect();
             match (move_next, acquired_target) {
-                (true, _) => {
-                    let chosen = get_move_position(bot,
-                        self.config.move_,
-                        self.config.see,
-                        self.config.field_radius,
-                        self.current_state.asteroid_map.clone(),
-                        other_bots);
-
-                    Action::MoveAction(MoveAction {
-                                        bot_id: bot.bot_id,
-                                        pos: Position { x: chosen.x, y: chosen. y}
-                    })
-                },
-                (false, Some(ref tgtpos)) => {
+                (_, Some(ref tgtpos)) => {
                     match spotter_bot_id {
                         Some(sbot_id) if sbot_id == bot.bot_id => {
                             let topos = bot.pos.move_away_from(tgtpos, self.config.move_);
@@ -290,7 +277,20 @@ impl Ai for RandomAi {
                         }
                     }
                 },
-                (false, None) => {
+                (true, _) => {
+                    let chosen = get_move_position(bot,
+                        self.config.move_,
+                        self.config.see,
+                        self.config.field_radius,
+                        self.current_state.asteroid_map.clone(),
+                        other_bots);
+
+                    Action::MoveAction(MoveAction {
+                                        bot_id: bot.bot_id,
+                                        pos: Position { x: chosen.x, y: chosen. y}
+                    })
+                },
+                _ => {
                     let chosen = get_move_position(bot,
                         self.config.move_,
                         self.config.see,

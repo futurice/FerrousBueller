@@ -94,9 +94,9 @@ impl Ai for RandomAi {
         let mut acquired_target: Option<Position> = None;
         let mut move_next = false;
         let mut spotter_bot_id: Option<u32> = None;
-        let scan_tolerance = 80 as f32;
         let mut shoot_count = self.current_state.shoot_count;
         let mut bots_to_dodge = Vec::new();
+        let scan_tolerance = 10 as f32;
 
         for event in events.into_iter()
         {
@@ -129,8 +129,17 @@ impl Ai for RandomAi {
                 },
                 Event::RadarEchoEvent(ree) => {
                     acquired_target = Some(Position { x: ree.pos.x, y: ree.pos.y });
+
                     match acquired_target{
-                        Some(ref tar) => self.current_state.last_target = Some(Position {x:tar.x, y:tar.y}),
+                        Some(ref tar) => {
+                            if self.current_state.asteroid_map.contains(&MapTile { pos: *tar, asteroid: true}) {
+                                let index = self.current_state.asteroid_map.position_elem(&MapTile { pos: *tar, asteroid: true }).unwrap();
+                                let tile = self.current_state.asteroid_map.get(index).unwrap();
+                                if !tile.asteroid {
+                                    self.current_state.last_target = Some(Position {x:tar.x, y:tar.y});
+                                }
+                            }
+                        },
                         None => {}
                     };
                     //println!("An enemy was radar-detected in a radius centered at x:{}, y:{}",
@@ -186,9 +195,6 @@ impl Ai for RandomAi {
                     false => {
                         // Asteroids added already above, if a tile is missing, add asteroid is false
                         self.current_state.asteroid_map.push(MapTile { pos: hex, asteroid: false });
-                        // println!("MapTile INDUBITABLY stored at x:{}, y:{}",
-                        //      hex.x,
-                        //      hex.y);
                     }
                 }
             }
@@ -215,10 +221,13 @@ impl Ai for RandomAi {
         let mut move_bot: bool = false;
 
         let skip: usize = (thread_rng().next_u32() % 6) as usize;
+        let mut current_radars: Vec<Position> = Vec::new();
+
         let actions = living_bots.zip(shoot_deltas.iter().cycle().skip(skip)).map(|(bot, delta)| {
             let other_bots: Vec<Bot> = self.you.bots.clone().into_iter().filter(|a_bot| a_bot.bot_id != bot.bot_id).collect();
             move_bot = bots_to_dodge.iter().filter(|&&b| b == bot.bot_id).count() > 0;
             match (move_next, acquired_target) {
+                // Someone has shot or scanned us
                 (true, _) => {
                     let chosen = get_move_position(bot,
                         self.config.move_,
@@ -232,6 +241,7 @@ impl Ai for RandomAi {
                                         pos: Position { x: chosen.x, y: chosen. y}
                     })
                 },
+                // We're safe and have a valid target
                 (false, Some(ref tgtpos)) => {
                     match spotter_bot_id {
                         Some(sbot_id) if sbot_id == bot.bot_id => {
@@ -249,7 +259,6 @@ impl Ai for RandomAi {
                                 x: tgtpos.x + (delta.x * shoot_count),
                                 y: tgtpos.y + (delta.y * shoot_count)
                             };
-                            println!("cannonpos for {:?} with shotcount {:?} is {:?}", bot.bot_id, shoot_count, cannonpos);
                             let mut bailout_move = false;
                             while cannonpos.contains_any_within(botpositions.clone(), self.config.cannon) {
                                 //println!("Moving cannonpos {:?} to avoid hit", cannonpos);
@@ -282,17 +291,46 @@ impl Ai for RandomAi {
                         }
                     }
                 },
+                // Seek for enemies
                 (false, None) => {
-                    let chosen = get_move_position(bot,
-                        self.config.move_,
-                        self.config.see,
-                        self.config.field_radius,
-                        self.current_state.asteroid_map.clone(),
-                        other_bots);
-                    Action::MoveAction(MoveAction {
-                                        bot_id: bot.bot_id,
-                                        pos: Position { x: chosen.x, y: chosen.y}
-                    })
+                    if self.current_state.scan_away {
+                        let mut radar_center = Position {
+                            x: thread_rng().gen_range(-self.config.field_radius + self.config.radar, self.config.field_radius - self.config.radar),
+                            y: thread_rng().gen_range(-self.config.field_radius + self.config.radar, self.config.field_radius - self.config.radar)
+                        };
+                        while true {
+                            if current_radars.iter().fold(true, |memo, pos| {
+                                memo && radar_center.distance(*pos) > (self.config.radar * 2)
+
+                            }) {
+                                break;
+                            }
+                            radar_center = Position {
+                                x: thread_rng().gen_range(-self.config.field_radius + self.config.radar, self.config.field_radius - self.config.radar),
+                                y: thread_rng().gen_range(-self.config.field_radius + self.config.radar, self.config.field_radius - self.config.radar)
+                            };
+                        }
+                        current_radars.push(radar_center);
+                        Action::RadarAction(RadarAction {
+                            bot_id: bot.bot_id,
+                            pos: radar_center
+                        })
+                    }
+                    else {
+                        let chosen = get_move_position(bot,
+                            self.config.move_,
+                            self.config.see,
+                            self.config.field_radius,
+                                self.current_state.asteroid_map.clone(),
+                            other_bots);
+                        Action::MoveAction(MoveAction {
+                            bot_id: bot.bot_id,
+                            pos: Position {
+                                x: chosen.x,
+                                y: chosen.y
+                            }
+                        })
+                    }
                 }
             }
 

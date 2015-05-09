@@ -96,7 +96,7 @@ impl Ai for RandomAi {
         let mut spotter_bot_id: Option<u32> = None;
         let mut shoot_count = self.current_state.shoot_count;
         let mut bots_to_dodge = Vec::new();
-        let scan_tolerance = 70 as f32;
+        let scan_tolerance = 50 as f32;
 
         for event in events.into_iter()
         {
@@ -212,13 +212,12 @@ impl Ai for RandomAi {
         let enough_asteroids = self.current_state.found_asteroids == self.config.asteroids.unwrap();
         if enough_coverage || enough_asteroids {
             self.current_state.scan_away = true;
-            println!("In scanning mode");
         }
-        // println!("{}% of map tiles stored, {}/{} asteroids, ready for scanning {}",
-        //                 current_map_coverage,
-        //                 self.current_state.found_asteroids,
-        //                 self.config.asteroids.unwrap(),
-        //                 self.current_state.scan_away);
+         println!("{}% of map tiles stored, {}/{} asteroids, ready for scanning {}",
+                         current_map_coverage,
+                         self.current_state.found_asteroids,
+                         self.config.asteroids.unwrap(),
+                         self.current_state.scan_away);
 
         match (move_next, acquired_target) {
             (false, Some(_)) => {
@@ -303,10 +302,11 @@ impl Ai for RandomAi {
                 },
                 // Seek for enemies
                 (false, None) => {
-                    if self.current_state.scan_away {
+                    if self.current_state.scan_away && thread_rng().gen_range(1,101) as i32 > (100 - current_map_coverage as i32) {
                         let mut radar_center = *thread_rng()
                             .choose(&Position { x: 0, y: 0 }
                                 .positions_within((self.config.field_radius - self.config.radar) as u32)).unwrap();
+
                         while true {
                             if current_radars.iter().fold(true, |memo, pos| {
                                 memo && radar_center.distance(*pos) > (self.config.radar * 2)

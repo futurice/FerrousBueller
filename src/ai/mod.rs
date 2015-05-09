@@ -80,6 +80,29 @@ fn filter_asteroids(positions: Vec<Position>, asteroids: Vec<MapTile>) -> Vec<Po
     positions.into_iter().filter(|pos| !asteroids.contains(&MapTile { pos: *pos, asteroid: true })).collect()
 }
 
+fn get_move_position(bot: &Bot, move_: u32, see: i32, field_radius: i32, asteroid_map: Vec<MapTile>, other_bots: Vec<Bot>) -> Position {
+    let allowed_positions = bot.pos.positions_at(move_, field_radius);
+    let asteroids: Vec<MapTile> = asteroid_map.clone().into_iter().filter(|tile| tile.asteroid).collect();
+
+    let allowed_free_positions = filter_asteroids(allowed_positions.clone(), asteroids.clone());
+
+    // TODO: don't move closer to a friend
+    // TODO: don't move to an asteroid position
+    let positions_without_others: Vec<Position> = allowed_free_positions.clone().into_iter().filter(|pos| {
+              other_bots.iter().fold(true, |memo, other| {
+              pos.distance(other.pos) > see
+      })
+    }).collect();
+    let mut final_positions = allowed_positions.clone();
+    if positions_without_others.len() > 0 {
+          final_positions = positions_without_others.clone();
+    }
+    println!("Positions in total {}, positions far enough of other bots {}",
+             allowed_positions.len(),
+             positions_without_others.len());
+    *thread_rng().choose(&final_positions).unwrap()
+}
+
 impl Ai for RandomAi {
 
     #[allow(unused_variables, unused_assignments)]
@@ -187,25 +210,13 @@ impl Ai for RandomAi {
             let other_bots: Vec<Bot> = self.you.bots.clone().into_iter().filter(|a_bot| a_bot.bot_id != bot.bot_id).collect();
             match (move_next, acquired_target) {
                 (true, _) => {
-                    //println!("bot {:?} has to move from {:?}", bot.bot_id, bot.pos);
-                    //println!("allowed move radius {:?}", self.config.move_);
-                    let allowed_positions = bot.pos.positions_at(self.config.move_, self.config.field_radius);
-                    let asteroids: Vec<MapTile> = self.current_state.asteroid_map.clone().into_iter().filter(|tile| tile.asteroid).collect();
+                    let chosen = get_move_position(bot,
+                        self.config.move_,
+                        self.config.see,
+                        self.config.field_radius,
+                        self.current_state.asteroid_map.clone(),
+                        other_bots);
 
-                    let allowed_free_positions = filter_asteroids(allowed_positions.clone(), asteroids.clone());
-
-                    //println!("allowed positions {:?}", allowed_positions);
-                    let positions_without_others: Vec<Position> = allowed_free_positions.clone().into_iter().filter(|pos| {
-                                other_bots.iter().fold(true, |memo, other| {
-                                pos.distance(other.pos) > self.config.see
-                        })
-                    }).collect();
-                    let mut final_positions = allowed_positions.clone();
-                    if positions_without_others.len() > 0 {
-                            final_positions = positions_without_others.clone();
-                    }
-                    let chosen = thread_rng().choose(&final_positions).unwrap();
-                    //println!("moving to {:?}", chosen);
                     Action::MoveAction(MoveAction {
                                         bot_id: bot.bot_id,
                                         pos: Position { x: chosen.x, y: chosen. y}
@@ -240,27 +251,13 @@ impl Ai for RandomAi {
                             }
                             match bailout_move {
                                 true => {
-                                    let allowed_positions = bot.pos.positions_at(self.config.move_, self.config.field_radius);
-                                    let asteroids: Vec<MapTile> = self.current_state.asteroid_map.clone().into_iter().filter(|tile| tile.asteroid).collect();
+                                    let chosen = get_move_position(bot,
+                                        self.config.move_,
+                                        self.config.see,
+                                        self.config.field_radius,
+                                            self.current_state.asteroid_map.clone(),
+                                        other_bots);
 
-                                    let allowed_free_positions = filter_asteroids(allowed_positions.clone(), asteroids.clone());
-
-                                    // TODO: don't move closer to a friend
-                                    // TODO: don't move to an asteroid position
-                                    let positions_without_others: Vec<Position> = allowed_free_positions.clone().into_iter().filter(|pos| {
-                                        other_bots.iter().fold(true, |memo, other| {
-                                            pos.distance(other.pos) > self.config.see
-                                        })
-                                    }).collect();
-                                    let mut final_positions = allowed_positions.clone();
-                                    if positions_without_others.len() > 0 {
-                                        final_positions = positions_without_others.clone();
-                                    }
-                                    let chosen = thread_rng().choose(&final_positions).unwrap();
-                                    println!("Positions in total {}, positions far enough of other bots {}",
-                                             allowed_positions.len(),
-                                             positions_without_others.len());
-                                    //println!("Bot {:?} moving to {:?}", bot.bot_id, chosen);
                                     Action::MoveAction(MoveAction {
                                                         bot_id: bot.bot_id,
                                                         pos: Position { x: chosen.x, y: chosen. y}
@@ -275,27 +272,12 @@ impl Ai for RandomAi {
                     }
                 },
                 (false, None) => {
-                    let allowed_positions = bot.pos.positions_at(self.config.move_, self.config.field_radius);
-                    let asteroids: Vec<MapTile> = self.current_state.asteroid_map.clone().into_iter().filter(|tile| tile.asteroid).collect();
-
-                    let allowed_free_positions = filter_asteroids(allowed_positions.clone(), asteroids.clone());
-                    // TODO: don't move closer to a friend
-                    // TODO: don't move to an asteroid position
-                    let positions_without_others: Vec<Position> = allowed_free_positions.clone().into_iter().filter(|pos| {
-                                other_bots.iter().fold(true, |memo, other| {
-                                pos.distance(other.pos) > self.config.see
-                        })
-                    }).collect();
-                    println!("Positions in total {}, positions far enough of other bots {}",
-                             allowed_positions.len(),
-                             positions_without_others.len());
-
-                    let mut final_positions = allowed_positions.clone();
-                    if positions_without_others.len() > 0 {
-                            final_positions = positions_without_others.clone();
-                    }
-                    let chosen = thread_rng().choose(&final_positions).unwrap();
-                    //println!("Bot {:?} moving to {:?}", bot.bot_id, chosen);
+                    let chosen = get_move_position(bot,
+                        self.config.move_,
+                        self.config.see,
+                        self.config.field_radius,
+                        self.current_state.asteroid_map.clone(),
+                        other_bots);
                     Action::MoveAction(MoveAction {
                                         bot_id: bot.bot_id,
                                         pos: Position { x: chosen.x, y: chosen.y}

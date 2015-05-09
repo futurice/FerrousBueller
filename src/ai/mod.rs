@@ -305,10 +305,9 @@ impl Ai for RandomAi {
                 // Seek for enemies
                 (false, None) => {
                     if self.current_state.scan_away {
-                        let mut radar_center = Position {
-                            x: thread_rng().gen_range(-self.config.field_radius + self.config.radar, self.config.field_radius - self.config.radar),
-                            y: thread_rng().gen_range(-self.config.field_radius + self.config.radar, self.config.field_radius - self.config.radar)
-                        };
+                        let mut radar_center = *thread_rng()
+                            .choose(&Position { x: 0, y: 0 }
+                                .positions_within((self.config.field_radius - self.config.radar) as u32)).unwrap();
                         while true {
                             if current_radars.iter().fold(true, |memo, pos| {
                                 memo && radar_center.distance(*pos) > (self.config.radar * 2)
@@ -316,10 +315,9 @@ impl Ai for RandomAi {
                             }) {
                                 break;
                             }
-                            radar_center = Position {
-                                x: thread_rng().gen_range(-self.config.field_radius + self.config.radar, self.config.field_radius - self.config.radar),
-                                y: thread_rng().gen_range(-self.config.field_radius + self.config.radar, self.config.field_radius - self.config.radar)
-                            };
+                            radar_center = *thread_rng()
+                                .choose(&Position { x: 0, y: 0 }
+                                    .positions_within((self.config.field_radius - self.config.radar) as u32)).unwrap();
                         }
                         current_radars.push(radar_center);
                         Action::RadarAction(RadarAction {

@@ -223,7 +223,8 @@ impl Ai for RandomAi {
             _ => {}
         }
 
-        let actions = living_bots.zip(shoot_deltas.iter().cycle()).map(|(bot, delta)| {
+        let skip: usize = (thread_rng().next_u32() % 6) as usize;
+        let actions = living_bots.zip(shoot_deltas.iter().cycle().skip(skip)).map(|(bot, delta)| {
             let other_bots: Vec<Bot> = self.you.bots.clone().into_iter().filter(|a_bot| a_bot.bot_id != bot.bot_id).collect();
             match (move_next, acquired_target) {
                 (true, _) => {

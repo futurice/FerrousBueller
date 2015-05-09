@@ -96,7 +96,7 @@ impl Ai for RandomAi {
         let mut spotter_bot_id: Option<u32> = None;
         let mut shoot_count = self.current_state.shoot_count;
         let mut bots_to_dodge = Vec::new();
-        let scan_tolerance = 10 as f32;
+        let scan_tolerance = 70 as f32;
 
         for event in events.into_iter()
         {
@@ -128,22 +128,29 @@ impl Ai for RandomAi {
                     //se.source, se.pos.x, se.pos.y)
                 },
                 Event::RadarEchoEvent(ree) => {
-                    acquired_target = Some(Position { x: ree.pos.x, y: ree.pos.y });
+                    if acquired_target == None {
+                        acquired_target = Some(Position { x: ree.pos.x, y: ree.pos.y});
 
-                    match acquired_target{
-                        Some(ref tar) => {
-                            if self.current_state.asteroid_map.contains(&MapTile { pos: *tar, asteroid: true}) {
-                                let index = self.current_state.asteroid_map.position_elem(&MapTile { pos: *tar, asteroid: true }).unwrap();
-                                let tile = self.current_state.asteroid_map.get(index).unwrap();
-                                if !tile.asteroid {
+                        let tar = acquired_target.unwrap();
+                        if self.current_state.asteroid_map.contains(&MapTile { pos: tar, asteroid: true}) {
+                            let index = self.current_state.asteroid_map.position_elem(&MapTile { pos: tar, asteroid: true}).unwrap();
+                            let tile = self.current_state.asteroid_map.get(index).unwrap();
+                            if !tile.asteroid {
                                     self.current_state.last_target = Some(Position {x:tar.x, y:tar.y});
-                                }
+                                    //println!("Shooting at a non-asteroid");
                             }
-                        },
-                        None => {}
-                    };
-                    //println!("An enemy was radar-detected in a radius centered at x:{}, y:{}",
-                    //    ree.pos.x, ree.pos.y)
+                            else {
+                                //println!("Not shooting because of an asteroid");
+                                acquired_target = None;
+                            }
+                        }
+                        else {
+                            //println!("Not shooting because of no idea what this is");
+                            acquired_target = None;
+                        }
+                    }
+                        //println!("An enemy was radar-detected in a radius centered at x:{}, y:{}",
+                        //    ree.pos.x, ree.pos.y)
                 },
                 Event::DetectedEvent(dte) => {
                     //println!("Bot ID: {} got radar-detected!", dte.bot_id);
@@ -205,6 +212,7 @@ impl Ai for RandomAi {
         let enough_asteroids = self.current_state.found_asteroids == self.config.asteroids.unwrap();
         if enough_coverage || enough_asteroids {
             self.current_state.scan_away = true;
+            println!("In scanning mode");
         }
         // println!("{}% of map tiles stored, {}/{} asteroids, ready for scanning {}",
         //                 current_map_coverage,
@@ -213,7 +221,11 @@ impl Ai for RandomAi {
         //                 self.current_state.scan_away);
 
         match (move_next, acquired_target) {
-            (false, Some(_)) => shoot_count += 1,
+            (false, Some(_)) => {
+                if shoot_count < 2 {
+                    shoot_count += 1
+                }
+            },
             (_, None) => shoot_count = 0,
             _ => {}
         }
@@ -222,11 +234,10 @@ impl Ai for RandomAi {
 
         let skip: usize = (thread_rng().next_u32() % 6) as usize;
         let mut current_radars: Vec<Position> = Vec::new();
-
         let actions = living_bots.zip(shoot_deltas.iter().cycle().skip(skip)).map(|(bot, delta)| {
             let other_bots: Vec<Bot> = self.you.bots.clone().into_iter().filter(|a_bot| a_bot.bot_id != bot.bot_id).collect();
             move_bot = bots_to_dodge.iter().filter(|&&b| b == bot.bot_id).count() > 0;
-            match (move_next, acquired_target) {
+            match (move_bot, acquired_target) {
                 // Someone has shot or scanned us
                 (true, _) => {
                     let chosen = get_move_position(bot,
@@ -246,14 +257,12 @@ impl Ai for RandomAi {
                     match spotter_bot_id {
                         Some(sbot_id) if sbot_id == bot.bot_id => {
                             let topos = bot.pos.move_away_from(tgtpos, self.config.move_);
-                            //println!("Moving {:?} to {:?}", bot.bot_id, topos);
                             Action::MoveAction(MoveAction {
                                 bot_id: bot.bot_id,
                                 pos: topos
                             })
                         },
                         _ => {
-                            //println!("Cannonning");
                             // TODO: make sure spread doesn't hit our spotter
                             let mut cannonpos = Position {
                                 x: tgtpos.x + (delta.x * shoot_count),
@@ -283,10 +292,12 @@ impl Ai for RandomAi {
                                                         pos: Position { x: chosen.x, y: chosen. y}
                                     })
                                 },
-                                false => Action::CannonAction(CannonAction {
-                                    bot_id: bot.bot_id,
-                                    pos: cannonpos
-                                })
+                                false => {
+                                    Action::CannonAction(CannonAction {
+                                       bot_id: bot.bot_id,
+                                        pos: cannonpos
+                                    })
+                                }
                             }
                         }
                     }

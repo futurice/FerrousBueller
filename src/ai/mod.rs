@@ -51,7 +51,8 @@ struct State {
     last_target: Option<Position>,
     asteroid_map: Vec<MapTile>,
     //bot state
-    bot_states: Vec<BotState>
+    bot_states: Vec<BotState>,
+    shoot_count: i32
 }
 
 #[derive(Debug)]
@@ -88,6 +89,7 @@ impl Ai for RandomAi {
         let mut acquired_target: Option<Position> = None;
         let mut move_next = false;
         let mut spotter_bot_id: Option<u32> = None;
+        let mut shoot_count = self.current_state.shoot_count;
 
         for event in events.into_iter()
         {
@@ -107,6 +109,7 @@ impl Ai for RandomAi {
                 Event::SeeEvent(se) =>{
                     spotter_bot_id = Some(se.source);
                     acquired_target = Some(Position{x: se.pos.x, y: se.pos.y});
+                    shoot_count = 0;
                     match acquired_target{
                         Some(ref tar) => {
                             self.current_state.last_target = Some(Position{x: tar.x, y:tar.y})
@@ -150,12 +153,13 @@ impl Ai for RandomAi {
             }
         }
 
-        let random_x_offset = thread_rng().gen_range(0, 2);
-
         let shoot_deltas = vec![
+            Position { x:  1, y:  0 },
+            Position { x:  1, y: -1 },
+            Position { x: -1, y:  0 },
             Position { x: -1, y:  1 },
             Position { x:  0, y:  1 },
-            Position { x: random_x_offset, y: -1 },
+            Position { x:  0, y: -1 },
         ];
 
         let botpositions: Vec<Position> = self.you.bots.iter().map(|bot| bot.pos).collect();
@@ -173,17 +177,23 @@ impl Ai for RandomAi {
                     false => {
                         // Asteroids added already above, if a tile is missing, add asteroid is false
                         self.current_state.asteroid_map.push(MapTile { pos: hex, asteroid: false });
-                        println!("MapTile INDUBITABLY stored at x:{}, y:{}",
-                             hex.x,
-                             hex.y);
+                        // println!("MapTile INDUBITABLY stored at x:{}, y:{}",
+                        //      hex.x,
+                        //      hex.y);
                     }
                 }
             }
         }
 
-        println!("{}% of map tiles stored", (self.current_state.asteroid_map.len() as f32 / tile_count as f32) * 100 as f32);
+        // println!("{}% of map tiles stored", (self.current_state.asteroid_map.len() as f32 / tile_count as f32) * 100 as f32);
 
-        living_bots.zip(shoot_deltas.iter().cycle()).map(|(bot, delta)| {
+        match (move_next, acquired_target) {
+            (false, Some(_)) => shoot_count += 1,
+            (_, None) => shoot_count = 0,
+            _ => {}
+        }
+
+        let actions = living_bots.zip(shoot_deltas.iter().cycle()).map(|(bot, delta)| {
             let other_bots: Vec<Bot> = self.you.bots.clone().into_iter().filter(|a_bot| a_bot.bot_id != bot.bot_id).collect();
             match (move_next, acquired_target) {
                 (true, _) => {
@@ -225,9 +235,10 @@ impl Ai for RandomAi {
                             //println!("Cannonning");
                             // TODO: make sure spread doesn't hit our spotter
                             let mut cannonpos = Position {
-                                x: tgtpos.x + delta.x,
-                                y: tgtpos.y + delta.y
+                                x: tgtpos.x + (delta.x * shoot_count),
+                                y: tgtpos.y + (delta.y * shoot_count)
                             };
+                            println!("cannonpos for {:?} with shotcount {:?} is {:?}", bot.bot_id, shoot_count, cannonpos);
                             let mut bailout_move = false;
                             while cannonpos.contains_any_within(botpositions.clone(), self.config.cannon) {
                                 //println!("Moving cannonpos {:?} to avoid hit", cannonpos);
@@ -257,9 +268,9 @@ impl Ai for RandomAi {
                                         final_positions = positions_without_others.clone();
                                     }
                                     let chosen = thread_rng().choose(&final_positions).unwrap();
-                                    println!("Positions in total {}, positions far enough of other bots {}",
-                                             allowed_positions.len(),
-                                             positions_without_others.len());
+                                    // println!("Positions in total {}, positions far enough of other bots {}",
+                                    //          allowed_positions.len(),
+                                    //          positions_without_others.len());
                                     //println!("Bot {:?} moving to {:?}", bot.bot_id, chosen);
                                     Action::MoveAction(MoveAction {
                                                         bot_id: bot.bot_id,
@@ -286,9 +297,9 @@ impl Ai for RandomAi {
                                 pos.distance(other.pos) > self.config.see
                         })
                     }).collect();
-                    println!("Positions in total {}, positions far enough of other bots {}",
-                             allowed_positions.len(),
-                             positions_without_others.len());
+                    // println!("Positions in total {}, positions far enough of other bots {}",
+                    //          allowed_positions.len(),
+                    //          positions_without_others.len());
 
                     let mut final_positions = allowed_positions.clone();
                     if positions_without_others.len() > 0 {
@@ -303,7 +314,10 @@ impl Ai for RandomAi {
                 }
             }
 
-        }).collect()
+        }).collect();
+
+        self.current_state.shoot_count = shoot_count;
+        actions
     }
 
     fn set_state(&mut self, config: GameConfig, you: Team, other_teams: Vec<TeamNoPosNoHp>) {

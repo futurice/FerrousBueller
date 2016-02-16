@@ -55,5 +55,5 @@ At least Vim and Emacs have packages in the usual places. Sublime Text seems to 
 - [Official documentation](http://doc.rust-lang.org/)
 - [The official Rust book](http://doc.rust-lang.org/book/)
 - [API reference](http://doc.rust-lang.org/std/)
-- [Are we web yet?](http://arewewebyet.com/)
+- [Are we web yet?](http://www.arewewebyet.org/)
 - [Fearless Concurrency with Rust](http://blog.rust-lang.org/2015/04/10/Fearless-Concurrency.html)
